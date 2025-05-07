@@ -4,15 +4,15 @@ weight: 1
 published: true
 ---
 
-CPUs are controlled with *machine language*, which is just a stream of binary-encoded instructions that specify
+CPU는 기계어로 제어합니다. 기계어는 단순히 다음을 지정하는 이진 인코딩된 명령어들의 흐름일 뿐입니다.
 
-- the instruction number (called *opcode*),
-- what its *operands* are (if there are any),
-- and where to store the *result* (if one is produced).
+- 명령어 번호(opcode라 불립니다.)
+- 피연산자(있는 경우)
+- 결과를 저장할 위치(결과가 생성되는 경우)
 
-A much more human-friendly rendition of machine language, called *assembly language*, uses mnemonic codes to refer to machine code instructions and symbolic names to refer to registers and other storage locations.
+기계어를 사람이 훨씬 더 이해하기 쉽게 표현한 것이 어셈블리어입니다. 어셈블리어는 기계어 명령어를 참조할 때 기억하기 쉬운 약어(mnemonic) 코드를 사용하고, 레지스터나 기타 저장 위치를 참조할 때는 기호 이름(symbolic name)을 사용합니다.
 
-Jumping right into it, here is how you add two numbers (`*c = *a + *b`) in Arm assembly:
+바로 예제를 살펴보겠습니다. 아래는 Arm 어셈블리로 두 수를 더하는 방법(*c = *a + *b)입니다.
 
 ```nasm
 ; *a = x0, *b = x1, *c = x2
@@ -22,7 +22,7 @@ add w0, w0, w1  ; add w0 with w1 and save the result to w0
 str w0, [x2]    ; write contents of w0 to wherever x2 points
 ```
 
-Here is the same operation in x86 assembly:
+아래는 같은 연산을 수행하는 x86 어셈블리 코드입니다.
 
 ```nasm
 ; *a = rsi, *b = rdi, *c = rdx 
@@ -31,45 +31,47 @@ add eax, DWORD PTR [rdi]  ; add whatever is stored at rdi to eax
 mov DWORD PTR [rdx], eax  ; write contents of eax to wherever rdx points
 ```
 
-Assembly is very simple in the sense that it doesn't have many syntactical constructions compared to high-level programming languages. From what you can observe from the examples above:
+어셈블리는 고수준 언어에 비해 구문이 많지 않아 구조적으로 매우 단순한 언어입니다. 위의 예제에서 다음과 같은 점을 관찰할 수 있습니다.
 
-- A program is a sequence of instructions, each written as its name followed by a variable number of operands.
-- The `[reg]` syntax is used for "dereferencing" a pointer stored in a register, and on x86 you need to prefix it with size information (`DWORD` here means 32 bit).
-- The `;` sign is used for line comments, similar to `#` and `//` in other languages.
+- 프로그램은 명령어들의 순서로 구성되며, 각 명령어는 이름 뒤에 가변적인 수의 피연산자를 갖습니다.
+- `[reg]` 문법은 레지스터에 저장된 포인터를 역참조할 때 사용되며, x86에서는 데이터 크기(`DWORD` 등)를 나타내는 접두사가 필요합니다.
+- `;` 기호는 줄 단위 주석에 사용되며, 이는 다른 언어의 `#` 혹은 `//`와 유사합니다.
 
-Assembly is a very minimal language because it needs to be. It reflects the machine language as closely as possible, up to the point where there is almost 1:1 correspondence between machine code and assembly. In fact, you can turn any compiled program back into its assembly form using a process called *disassembly*[^disassembly] — although everything non-essential like comments will not be preserved.
+어셈블리는 필요에 의해 매우 축약된 최소한의 언어입니다. 기계어를 거의 1:1 수준으로 반영하기 때문에, 어셈블리와 기계어 사이의 대응 관계가 매우 밀접합니다. 실제로, 디스어셈블리(disassembly)[^disassembly]라는 과정을 통해 컴파일된 프로그램을 어셈블리 형태로 되돌릴 수 있습니다. 물론 주석과 같은 부가적인 정보는 이 과정에서 보존되지는 않습니다.
 
-[^disassembly]: On Linux, to disassemble a compiled program, you can call `objdump -d {path-to-binary}`.
+[^disassembly]: 리눅스 환경에서 컴파일된 프로그램을 디스어셈블리 하려면 `objdump -d {path-to-binary}` 명령어를 호출하면 됩니다.
 
-Note that the two snippets above are not just syntactically different. Both are optimized codes produced by a compiler, but the Arm version uses 4 instructions, while the x86 version uses 3. The `add eax, [rdi]` instruction is what's called *fused instruction* that does a load and an add in one go — this is one of the perks that the [CISC](../isa#risc-vs-cisc) approach can provide.
+위의 두 코드 스니펫은 단순히 문법만 다른 것이 아닙니다. 둘 다 컴파일러에 의해 생성된 최적화된 코드지만 Arm은 4개의 명령어를 사용하는 반면, x86은 3개만 사용합니다. `add eax, [rdi]` 명령은 메모리에서 값을 로드하고 더하는 작업을 한 번에 수행하는 결합 명령어(fused instruction)입니다. 이는 [CISC](../isa#risc-vs-cisc) 접근 방식이 제공할 수 있는 장점 중 하나입니다.
 
-Since there are far more differences between the architectures than just this one, from here on and for the rest of the book we will only provide examples for x86, which is probably what most of our readers will optimize for, although many of the introduced concepts will be architecture-agnostic.
+물론 이 외에도 두 아키텍처 사이에는 훨씬 더 많은 차이점이 존재합니다. 그러나 이 책의 나머지 부분에서는 대부분의 독자들이 최적화를 시도할 x86 아키텍처만을 예제로 사용할 것입니다. 다만, 이 책에서 다룰 개념들의 대부분은 아키텍처에 구애받지 않는 개념일 것입니다.
 
-### Instructions and Registers
+### 명령어와 레지스터
 
-For historical reasons, instruction mnemonics in most assembly languages are very terse. Back when people used to write assembly by hand and repeatedly wrote the same set of common instructions, one less character to type was one step away from insanity.
+역사적인 이유로 대부분의 어셈블리어에서 명령어 약어는 매우 간결합니다. 과거에는 사람들이 어셈블리를 손으로 작성하며 반복적으로 동일한 명령어들을 입력해야 했기에, 한 글자라도 줄여야 했습니다.
 
-For example, `mov` is for "store/load a word," `inc` is for "increment by 1," `mul` is for "multiply," and `idiv` is for "integer division." You can look up the description of an instruction by its name in [one of x86 references](https://www.felixcloutier.com/x86/), but most instructions do what you'd think they do.
+예를 들어, `mov`는 "워드 저장/불러오기", `inc`는 "1 증가", `mul`은 "곱셈", `idiv`는 "정수 나눗셈"을 의미합니다. 명령어에 대한 설명은 [x86 레퍼런스 중 하나](https://www.felixcloutier.com/x86/)에서 이름으로 찾아볼 수 있지만, 대부분의 명령어는 이름에서 예상되는 일을 수행합니다.
 
-Most instructions write their result into the first operand, which can also be involved in the computation like in the `add eax, [rdi]` example we saw before. Operands can be either registers, constant values, or memory locations.
+대부분의 명령어는 결과를 첫 번째 피연산자에 기록하며, 이 피연산자가 연산에 사용되기도 합니다. 앞에서 보았던 `add eax, [rdi]` 예제가 그 예입니다. 피연산자는 레지스터, 상수값, 메모리 위치가 될 수 있습니다.
 
-**Registers** are named `rax`, `rbx`, `rcx`, `rdx`, `rdi`, `rsi`, `rbp`, `rsp`, and `r8`-`r15` for a total of 16 of them. The "letter" ones are named like that for historical reasons: `rax` is "accumulator," `rcx` is "counter," `rdx` is "data" and so on — but, of course, they don't have to be used only for that.
+**레지스터**는 총 16개이며 `rax`, `rbx`, `rcx`, `rdx`, `rdi`, `rsi`, `rbp`, `rsp`, 그리고 `r8`부터 `r15`까지 존재합니다. 이 중 알파벳으로 된 이름은 역사적인 이유에 기반합니다. 예를 들어 `rax`는 "accumulator", `rcx`는 "counter", `rdx`는 "data"를 뜻했지만, 오늘날에는 이런 용도로만 쓰일 필요는 없습니다.
 
-There are also 32-, 16-bit and 8-bit registers that have similar names (`rax` → `eax` → `ax` → `al`). They are not fully separate but *aliased*: the lowest 32 bits of `rax` are `eax`, the lowest 16 bits of `eax` are `ax`, and so on. This is made to save die space while maintaining compatibility, and it is also the reason why basic type casts in compiled programming languages are usually free. 
 
-These are just the *general-purpose* registers that you can, with [some exceptions](../functions), use however you like in most instructions. There is also a separate set of registers for [floating-point arithmetic](/hpc/arithmetic/float), a bunch of very wide registers used in [vector extensions](/hpc/simd), and a few special ones that are needed for [control flow](../loops), but we'll get there in time.
+또한 `rax` → `eax` → `ax` → `al`처럼 유사한 이름을 가진 32비트, 16비트, 8비트 레지스터도 존재합니다. 이들은 완전히 분리된 것이 아니라 aliasing 되어 있으며, `rax`의 하위 32비트가 `eax`, 그 하위 16비트가 `ax`, 또 그 하위 8비트가 `al`입니다. 이는 호환성을 유지하면서도 칩 면적을 절약하기 위해 고안된 구조이며, 컴파일된 언어에서 기본 타입 캐스팅이 별도의 비용 없이 가능한 이유이기도 합니다. 
 
-**Constants** are just integer or floating-point values: `42`, `0x2a`, `3.14`, `6.02e23`. They are more commonly called *immediate values* because they are embedded right into the machine code. Because it may considerably increase the complexity of the instruction encoding, some instructions don't support immediate values or allow just a fixed subset of them. In some cases, you have to load a constant value into a register and then use it instead of an immediate value.
+이들은 대부분의 명령어에서 자유롭게 사용할 수 있는 범용 레지스터입니다. 단, [일부 예외](../functions)가 존재합니다. 이 외에도 [부동 소수점 연산](/hpc/arithmetic/float)용 레지스터, [벡터 확장](/hpc/simd)용 와이드 레지스터, 그리고 [제어 흐름](../loops)에 사용되는 특수 레지스터 등이 있지만, 이는 추후에 다룰 예정입니다.
 
-Apart from numeric values, there are also string constants such as `hello` or `world\n` with their own little subset of operations, but that is a somewhat obscure corner of the assembly language that we are not going to explore here.
+**상수**는 `42`, `0x2a`, `3.14`, `6.02e23`등 단순한 정수나 부동 소수점 숫자입니다. 이들은 보통 즉시 값(immediate values)라 불리며, 기계어에 직접 포함됩니다. 하지만 명령어 인코딩의 복잡성을 크게 증가시킬 수 있기 때문에, 일부 명령어는 즉시 값을 지원하지 않거나 제한된 형태만 허용합니다. 이 경우, 상수를 레지스터에 먼저 로드한 뒤, 해당 레지스터를 사용하는 방식으로 대체해야 할 수도 있습니다.
 
-### Moving Data
+숫자 외에도 `hello`나 `world\n`같은 문자열 상수도 있으며, 이들은 자신만의 제한된 명령어 집합으로 다루어집니다. 하지만 이러한 부분은 어셈블리 언어의 다소 모호한 영역이며, 여기서는 다루지 않겠습니다.
 
-Some instructions may have the same mnemonic, but have different operand types, in which case they are considered distinct instructions as they may perform slightly different operations and take different times to execute. The `mov` instruction is a vivid example of that, as it comes in around 20 different forms, all related to moving data: either between the memory and registers or just between two registers. Despite the name, it doesn't *move* a value into a register, but *copies* it, preserving the original.
+### 데이터 이동하기
 
-When used to copy data between two registers, the `mov` instruction instead performs *register renaming* internally — informs the CPU that the value referred by register X is actually stored in register Y — without causing any additional delay except for maybe reading and decoding the instruction itself. For the same reason, the `xchg` instruction that swaps two registers also doesn't cost anything.
+몇몇 명령어는 같은 약어를 가지지만, 서로 다른 피연산자 타입을 사용하는 경우가 있습니다. 이 경우 수행하는 작업이 약간씩 다르고 실행시간에도 차이가 있기 때문에 서로 다른 명령어로 간주됩니다. `mov` 명령어는 그 대표적인 예로, 메모리와 레지스터 간 또는 두 레지스터 간 데이터를 옮기는 데 사용되는 약 20가지 형태가 존재합니다. 이름과는 달리, `mov`는 값을 이동시키는 것이 아니라 복사하여 원본을 그대로 보존합니다.
 
-As we've seen above with the fused `add`, you don't have to use `mov` for every memory operation: some arithmetic instructions conveniently support memory locations as operands.
+레지스터 간 데이터를 복사할 때, `mov` 명령어는 실제 복사를 수행하지 않고, 내부적으로 레지스터 리네이밍(renaming)을 수행합니다. 즉, CPU는 레지스터 X가 참조하던 값을 이제는 레지스터 Y가 참조한다고 간주하는 식으로 처리합니다. 이 과정은 명령어 자체를 읽고 디코딩하는 것을 제외하면 추가적인 지연 없이 수행됩니다. 같은 이유로, 두 레지스터의 값을 서로 바꾸는 `xchg` 명령어 역시 성능 상의 비용이 거의 없습니다.
+
+앞서 살펴본 `add` 명령어의 결합 예시처럼, 모든 메모리 연산에 `mov`를 사용할 필요는 없습니다. 일부 산술 명령어는 피연산자로 메모리 위치를 직접 사용할 수 있기 때문입니다.
+
 
 <!--
 
@@ -81,43 +83,43 @@ Mirroring
 
 -->
 
-### Addressing Modes
+### 주소 지정 방식
 
-Memory addressing is done with the `[]` operator, but it can do more than just reinterpret a value stored in a register as a memory location. The address operand takes up to 4 parameters presented in the syntax:
+메모리 주소 지정은 `[]` 연산자를 사용하며, 단순히 레지스터에 저장된 값을 메모리 주소로 해석하는 것을 넘어 더 복잡한 주소 계산도 가능합니다. 주소 피연산자는 다음과 같은 4개의 요소를 포함할 수 있습니다.
 
 ```
 SIZE PTR [base + index * scale + displacement]
 ```
 
-where `displacement` needs to be an integer constant and `scale` can be either 2, 4, or 8. What it does is calculate the pointer `base + index * scale + displacement` and dereferences it.
+여기서 `displacement`는 반드시 정수 상수여야 하며, `scale`은 2, 4, 8 중 하나여야 합니다. 이 형식은 `base + index * scale + displacement`를 계산한 뒤, 해당 주소를 참조하는 방식입니다.
 
 <!-- You can use them in any order: the assembler will figure it out. -->
 
-Using complex addressing is [at most one cycle slower](/hpc/cpu-cache/pointers) than dereferencing a pointer directly, and it can be useful when you have, for example, an array of structures and want to load a specific field of its $i$-th element.
+이처럼 복잡한 주소 계산을 사용하는 것은 포인터를 직접 참조하는 것에 비해 [최대 한 사이클](/hpc/cpu-cache/pointers) 느릴 수 있지만, 예를 들어 구조체 배열에서 $i$번째 요소의 특정 필드를 가져오는 등 다양한 상황에서 유용하게 활용됩니다.
 
-Addressing operator needs to be prefixed with a size specifier for how many bits of data are needed:
+주소 연산자를 사용할 때는 몇 비트 크기의 데이터를 다룰 것인지를 나타내는 크기 지정자(size specifier)를 앞에 붙여야 합니다.
 
-- `BYTE` for 8 bits
-- `WORD` for 16 bits
-- `DWORD` for 32 bits
-- `QWORD` for 64 bits
+- `BYTE` (8비트)
+- `WORD` (16비트)
+- `DWORD` (32비트)
+- `QWORD` (64비트)
 
-There is also a more rare `TBYTE` for [80 bits](/hpc/arithmetic/float), and `XMMWORD`, `YMMWORD`, and `ZMMWORD` for [128, 256, and 512 bits](/hpc/simd) respectively. All these types don't have to be written in uppercase, but this is how most compilers emit them.
+드물게 사용되는 `TBYTE` ([80비트](/hpc/arithmetic/float))와, SIMD 연산을 위한 `XMMWORD`, `YMMWORD`, `ZMMWORD`(각각 [128, 256, 512 비트](/hpc/simd))도 존재합니다. 이러한 타입 명칭은 반드시 대문자일 필요는 없지만, 대부분의 컴파일러는 대문자로 출력합니다.
 
-The address computation is often useful by itself: the `lea` ("load effective address") instruction calculates the memory address of the operand and stores it in a register in one cycle, without doing any actual memory operations. While its intended use is for actually computing memory addresses, it is also often used as an arithmetic trick that would otherwise involve 1 multiplication and 2 additions — for example, you can multiply by 3, 5, and 9 with it.
+주소 계산 자체가 유용한 경우도 많습니다. `lea`(load effective address) 명령어는 실제 메모리 접근 없이 피연산자의 주소를 계산해 해당 값을 레지스터에 저장합니다. 이 작업은 한 사이클 내에 이루어집니다. 원래는 메모리 주소 계산 용도로 설계되었지만, 이 명령어는 종종 산술 연산 트릭으로 활용되기도 합니다. 예를 들어 1번에 곱셈과 2번의 덧셈으 ㄹ대신하는 연산을 할 수 있어서 3, 5, 9배 곱셈 같은 연산에 유용합니다.
 
-It also frequently serves as a replacement for `add` because it doesn't need a separate `mov` instruction if you need to move the result somewhere else: `add` only works in the two-register `a += b` mode, while `lea` lets you do `a = b + c` (or even `a = b + c + d` if one of them is a constant).
+또한 `lea`는 결과를 다른 곳에 옮기기 위해 별도의 `mov` 없이 사용할 수 있기 때문에 `add`의 대체 용도로 자주 활용됩니다. `add`는 일반적으로 `a += b` 처럼 두 레지스터 간 연산만 가능한 반면, `lea`는 `a = b + c`나 `a = b + c + d`(단, 그중 하나는 상수일 때)같은 방식으로 결과를 바로 다른 레지스터에 저장할 수 있습니다.
 
-### Alternative Syntax
+### 대체 문법
 
-There are actually multiple *assemblers* (the programs that produce machine code from assembly) with different assembly languages, but only two x86 syntaxes are widely used now. They are commonly called after the two companies that used them and had a dominant influence on programming during that era:
+실제로 어셈블리어로부터 기계어를 생성하는 여러 어셈블러들이 존재하며, 각각은 고유한 어셈블리 문법을 사용할 수 있습니다. 하지만 현재 널리 사용되는 x86 문법은 두 가지 뿐입니다. 이 문법들은 해당 문법을 사용하고, 당시 프로그래밍에 지대한 영향을 끼친 두 회사를 따서 명명되었습니다.
 
-- The *AT&T syntax*, used by default by all Linux tools.
-- The *Intel syntax*, used by default, well, by Intel.
+- AT&T 문법 - 기본적으로 모든 리눅스 도구에서 사용됩니다.
+- Intel 문법 - 인텔 자체 도구에서 기본으로 사용됩니다.
 
-These syntaxes are also sometimes called *GAS* and *NASM* respectively, by the names of the two primary assemblers that use them (*GNU Assembler* and *Netwide Assembler*).
+이 문법들은 각각 해당 문법을 사용하는 대표 어셈블러의 이름을 따서 GAS(GNU Assembler), NASM(Netwide Assembler)라고도 불립니다.
 
-We used Intel syntax in this chapter and will continue to preferably use it for the rest of the book. For comparison, here is how the same `*c = *a + *b` example looks like in AT&T asm:
+이 책에서는 Intel 문법을 사용하고 있으며, 이후 내용에서도 기본적으로 Intel 문법을 사용할 것입니다. 비교를 위해, `*c = *a + *b` 연산을 AT&T 문법으로 작성한 예는 다음과 같습니다.
 
 ```asm
 movl (%rsi), %eax
@@ -125,22 +127,22 @@ addl (%rdi), %eax
 movl %eax, (%rdx)
 ```
 
-The key differences can be summarized as follows:
+이 두 문법 간의 핵심 차이점은 다음과 같습니다.
 
-1. The *last* operand is used to specify the destination.
-2. Registers and constants need to be prefixed by `%` and `$` respectively (e.g., `addl $1, %rdx` increments `rdx`).
-3. Memory addressing looks like this: `displacement(%base, %index, scale)`.
-4. Both `;` and `#` can be used for line comments, and also `/* */` can be used for block comments.
+1. 목적지 피연산자는 항상 마지막에 위치한다.
+2. 레지스터와 상수 앞에 각각 `%`, `$` 접두사를 붙여야 한다. 예: `$rax`
+3. 메모리 주소 지정 형식은 다음과 같습니다: `displacement(%base, %index, scale)`.
+4. 주석은 `;`, `#`, `/* */`를 사용할 수 있습니다.
 
-And, most importantly, in AT&T syntax, the instruction names need to be "suffixed" (`addq`, `movl`, `cmpq`, etc.) to specify what size operands are being manipulated:
+그리고 가장 중요한 차이점은, AT&T 문법에서는 명령어 이름에 접미사(`addq`, `movl`, `cmpq` 등)를 붙여 연산 크기를 명시해야 합니다.
 
-- `b` = byte (8 bit)
-- `w` = word (16 bit)
-- `l` = long (32 bit integer or 64-bit floating-point)
-- `q` = quad (64 bit)
-- `s` = single (32-bit floating-point)
-- `t` = ten bytes (80-bit floating-point)
+- `b` = byte (8 비트)
+- `w` = word (16 비트)
+- `l` = long (32 비트 정수 혹은 64비트 부동소수점)
+- `q` = quad (64 비트)
+- `s` = single (32 비트 부동소수점)
+- `t` = ten bytes (80 비트 부동소수점)
 
-In Intel syntax, this information is inferred from operands (which is why you also need to specify sizes of pointers).
+반면 Intel 문법에서는 이러한 크기 정보가 피연산자로부터 유추되므로 명령어에 접미사가 필요 없습니다. 이 때문에 포인터의 크기를 명확히 지정해 줄 필요가 있습니다.
 
-Most tools that produce or consume x86 assembly can do so in both syntaxes, so you can just pick the one you like more and don't worry.
+대부분의 x86 어셈블리 관련 도구는 두 문법을 모두 지원하므로, 본인이 더 편한 문법을 선택해 사용하면 됩니다.

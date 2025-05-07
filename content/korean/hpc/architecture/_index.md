@@ -4,8 +4,8 @@ aliases: [/hpc/analyzing-performance/assembly]
 weight: 2
 ---
 
-When I began learning how to optimize programs myself, one big mistake I made was to rely primarily on the empirical approach. Not understanding how computers really worked, I would semi-randomly swap nested loops, rearrange arithmetic, combine branch conditions, inline functions by hand, and follow all sorts of other performance tips I've heard from other people, blindly hoping for improvement.
+프로그램을 혼자서 최적화하는 방법을 배우기 시작했을 때, 제가 저질렀던 가장 큰 실수 중 하나는 주로 경험적인 접근 방식에 의존한 것이었습니다. 컴퓨터가 실제로 어떻게 작동하는지를 이해하지 못한 채, 중첩 반복문을 반 무작위로 교체하고, 산술 연산을 재배열하며, 분기 조건을 결합하고, 함수를 수동으로 인라인 처리하는 등, 다른 사람들에게 들은 온갖 성능 팁을 맹목적으로 따라 하면서 개선되기를 바랐습니다.
 
-Unfortunately, this is how most programmers approach optimization. Most texts about performance do not teach you to reason about software performance qualitatively. Instead they give you general advice about certain implementation approaches — and general performance intuition is clearly not enough.
+안타깝게도, 대부분의 프로그래머들이 최적화를 접근하는 방식이 이와 같습니다. 성능에 대한 대부분의 자료는 소프트웨어 성능을 질적으로 사고하는 법을 가르쳐 주지 않습니다. 대신 특정한 구현 방식에 대한 일반적인 조언만을 제공합니다. 그러나 일반적인 성능 직관만으로는 분명히 부족합니다.
 
-It would have probably saved me dozens, if not hundreds of hours if I learned computer architecture *before* doing algorithmic programming. So, even if most people aren't *excited* about it, we are going to spend the first few chapters studying how CPUs work and start with learning assembly.
+만약 알고리즘 프로그래밍을 하기 전에 컴퓨터 구조를 먼저 배웠다면, 수십 시간, 어쩌면 수백 시간의 시간을 아꼈을지도 모릅니다. 그래서 대부분의 사람들이 큰 흥미를 느끼지 않는 주제일지라도, 우리는 먼저 CPU가 어떻게 작동하는지를 배우는 것부터 시작해서 어셈블리 언어 학습으로 들어갈 예정입니다.

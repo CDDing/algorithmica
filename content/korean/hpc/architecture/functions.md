@@ -4,21 +4,22 @@ weight: 3
 published: true
 ---
 
-To "call a function" in assembly, you need to [jump](../loops) to its beginning and then jump back. But then two important problems arise:
+어셈블리에서 함수를 호출하려면, 함수의 시작 지점으로 [점프](../loops)한 뒤 다시 되돌아와야 합니다. 하지만 이 과정에서 두 가지 중요한 문제가 발생합니다.
 
-1. What if the caller stores data in the same registers as the callee?
-2. Where is "back"?
+1. 호출자와 피호출자가 같은 레지스터를 사용하고 있다면, 피호출자의 데이터는 어떻게 되는가?
+2. "되돌아올 위치"는 어디인가?
 
-Both of these concerns can be solved by having a dedicated location in memory where we can write all the information we need to return from the function before calling it. This location is called *the stack*.
+이 두 가지 문제는, 함수를 호출하기 전에 함수로부터 돌아오는 데 필요한 모든 정보를 저장할 수 있는 메모리상의 전용 공간을 마련함으로써 해결할 수 있습니다. 이 공간을 **스택(stack)**이라고 부릅니다.
 
-### The Stack
+### 스택
 
 The hardware stack works the same way software stacks do and is similarly implemented as just two pointers:
+하드웨어 스택은 소프트웨어 스택과 동일한 방식으로 작동하며, 두 개의 포인터만으로 구현된다는 점에서도 유사합니다.
 
-- The *base pointer* marks the start of the stack and is conventionally stored in `rbp`.
-- The *stack pointer* marks the last element of the stack and is conventionally stored in `rsp`.
+- **베이스 포인터**는 스택의 시작 지점을 나타내며, 일반적으로 `rbp`에 저장됩니다.
+- **스택 포인터**는 스택의 마지막 원소를 가리키며, 일반적으로 `rsp`에 저장됩니다.
 
-When you need to call a function, you push all your local variables onto the stack (which you can also do in other circumstances; e.g., when you run out of registers), push the current instruction pointer, and then jump to the beginning of the function. When exiting from a function, you look at the pointer stored on top of the stack, jump there, and then carefully read all the variables stored on the stack back into their registers.
+함수를 호출해야 할 때는, 모든 지역 변수를 스택에 푸시하고(레지스터가 부족할 때 등 다른 상황에서도 사용될 수 있습니다), 현재 명령어 포인터를 스택에 저장한 뒤 함수의 시작 지점으로 점프합니다. 함수에서 반환할 때는 스택 맨 위에 저장된 포인터를 참조하여 해당 위치로 점프하고, 스택에 저장된 변수들을 다시 레지스터로 복원합니다.
 
 <!--
 
@@ -36,14 +37,14 @@ When a function starts, it executed a *function prologue*: saves the previous ba
 
 -->
 
-You can implement all that with the usual memory operations and jumps, but because of how frequently it is used, there are 4 special instructions for doing this:
+이러한 과정을 일반적인 메모리 명령어와 점프 명령어만으로 구현할 수는 있지만, 너무 자주 사용되기 때문에 이를 위한 네 가지 특수 명령어가 존재합니다.
 
-- `push` writes data at the stack pointer and decrements it.
-- `pop` reads data from the stack pointer and increments it.
-- `call` puts the address of the following instruction on top of the stack and jumps to a label.
-- `ret` reads the return address from the top of the stack and jumps to it.
+- `push` : 현재 스택 포인터 위치에 데이터를 저장하고 포인터를 감소시킵니다.
+- `pop` : 현재 스택 포인터 위치에서 데이터를 읽고 포인터를 증가시킵니다.
+- `call` : 다음 명령어의 주소(복귀 주소)를 스택에 저장하고, 특정 레이블로 점프합니다.
+- `ret` : 스택 맨 위에 있는 복귀 주소를 읽고, 해당 위치로 점프합니다.
 
-You would call them "syntactic sugar" if they weren't actual hardware instructions — they are just fused equivalents of these two-instruction snippets:
+이 명령어들은 두 개의 명령어로 이뤄진 동작을 하나로 묶은 것에 불과하므로, 이것들이 실제 하드웨어 명령어가 아니었다면 문법적 설탕(syntactic sugar)이라고 불렸을 것입니다.
 
 ```nasm
 ; "push rax"
@@ -63,7 +64,7 @@ pop  rcx ; <- choose any unused register
 jmp rcx
 ```
 
-The memory region between `rbp` and `rsp` is called a *stack frame*, and this is where local variables of functions are typically stored. It is pre-allocated at the start of the program, and if you push more data on the stack than its capacity (8MB by default on Linux), you encounter a *stack overflow* error. Because modern operating systems don't actually give you memory pages until you read or write to their address space, you can freely specify a very large stack size, which acts more like a limit on how much stack memory can be used, and not a fixed amount every program has to use.
+`rbp`와 `rsp` 사이의 메모리 영역은 스택 프레임이라고 불리며, 함수의 지역 변수들이 일반적으로 저장되는 공간입니다. 이 영역은 프로그램 시작 시 사전 할당되며, 기본 크기(리눅스에서는 8MB)보다 더 많은 데이터를 푸시하면 스택 오버플로우가 발생할 수 있습니다. 현대 운영체제는 실제 메모리 페이지를 주소 공간에 읽거나 쓰기를 시도하기 전까지 할당하지 않기 때문에, 스택 크기를 매우 크게 지정해도 문제가 없습니다. 이 크기는 모든 프로그램이 반드시 사용하는 고정된 양이 아니라, 사용할 수 있는 스택 메모리의 한계에 더 가깝습니다.
 
 <!--
 
@@ -92,11 +93,11 @@ Note that the data in the stack is written top-to-bottom. This is just a convent
 
 -->
 
-### Calling Conventions
+### 호출 규약
 
-The people who develop compilers and operating systems eventually came up with [conventions](https://wiki.osdev.org/Calling_Conventions) on how to write and call functions. These conventions enable some important [software engineering marvels](/hpc/compilation/stages/) such as splitting compilation into separate units, reusing already-compiled libraries, and even writing them in different programming languages.
+컴파일러와 운영체제를 개발한 사람들은 결국 함수의 작성과 호출 방식에 대한 [규약](https://wiki.osdev.org/Calling_Conventions) 을 만들어냈습니다. 이러한 규약 덕분에 컴파일을 여러 단위로 나누거나, 이미 컴파일된 라이브러리를 재사용하거나, 심지어 서로 다른 프로그래밍 언어로 작성된 코드를 함께 사용하는 것과 같은 중요한 [소프트웨어 공학적 혁신](/hpc/compilation/stages/)들이 가능해졌습니다.
 
-Consider the following example in C:
+다음은 C 코드의 예시입니다.
 
 ```c
 int square(int x) {
@@ -142,7 +143,7 @@ length:
 ```
 -->
 
-By convention, a function should take its arguments in `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9` (and the rest in the stack if those weren't enough), put the return value into `rax`, and then return. Thus, `square`, being a simple one-argument function, can be implemented like this:
+규약상, 함수는 인자를 `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`순으로 전달받으며, 인자가 이보다 많을 경우 나머지는 스택에 저장합니다. 반환 값은 `rax`에 저장되며, 이후 `ret` 명령어로 복귀합니다. 따라서 단일 인자를 받는 단순한 함수인 `square`는 다음과 같이 구현할 수 있습니다.
 
 ```nasm
 square:             ; x = edi, ret = eax
@@ -151,7 +152,7 @@ square:             ; x = edi, ret = eax
     ret
 ```
 
-Each time we call it from `distance`, we just need to go through some trouble preserving its local variables:
+`distance` 함수에서 이를 호출할 때마다, 지역 변수들을 보존하는 데 약간의 처리를 해줘야 합니다.
 
 ```nasm
 distance:           ; x = rdi/edi, y = rsi/esi, ret = rax/eax
@@ -174,11 +175,11 @@ distance:           ; x = rdi/edi, y = rsi/esi, ret = rax/eax
     ret
 ```
 
-There are a lot more nuances, but we won't go into detail here because this book is about performance, and the best way to deal with functions calls is actually to avoid making them in the first place.
+더 많은 사항들이 있지만, 여기서는 다루지 않겠습니다. 이 책은 성능 최적화에 관한 책이며, 함수 호출을 다루는 가장 좋은 방법은 애초에 호출하지 않는 것이기 때문입니다.
 
-### Inlining
+### 인라이닝
 
-Moving data to and from the stack creates noticeable overhead for small functions like these. The reason you have to do this is that, in general, you don't know whether the callee is modifying the registers where you store your local variables. But when you have access to the code of `square`, you can solve this problem by stashing the data in registers that you know won't be modified.
+데이터를 스택에 저장하고 불러오는 작업은 작은 함수들에서는 눈에 띄는 오버헤드를 유발합니다. 이렇게 해야 하는 이유는 일반적으로 피호출 함수가 지역 변수를 저장해 둔 레지스터를 수정할지 아닐지 알 수 없기 때문입니다. 하지만 `square` 함수의 코드에 접근할 수 없다면, 변경되지 않을 것이라고 확신할 수 있는 레지스터에 데이터를 저장(stashing)하여 이 문제를 해결할 수 있습니다.
 
 ```nasm
 distance:
@@ -190,7 +191,7 @@ distance:
     ret
 ```
 
-This is better, but we are still implicitly accessing stack memory: you need to push and pop the instruction pointer on each function call. In simple cases like this, we can *inline* function calls by stitching the callee's code into the caller and resolving conflicts over registers. In our example:
+이 방법이 더 낫지만, 여전히 스택 메모리에 암묵적으로 접근하고 있습니다. 각 함수 호출마다 명령어 포인터를 push하고 pop해야 하기 때문입니다. 이런 단순한 경우에는, 피호출 함수의 코드를 호출자에 직접 붙이고 레지스터 충돌을 해결하는 방식으로 함수 호출을 인라인할 수 있습니다.
 
 ```nasm
 distance:
@@ -201,7 +202,7 @@ distance:
     ret
 ```
 
-This is fairly close to what optimizing compilers produce out of this snippet — only they use the [lea trick](../assembly) to make the resulting machine code sequence a few bytes smaller:
+이는 최적화된 컴파일러가 이 코드를 처리했을 때 생성하는 결과와 매우 유사합니다. 다만 결과 기계어 코드를 몇 바이트 줄이기 위해 [lea 트릭](../assembly)을 사용합니다.
 
 ```nasm
 distance:
@@ -211,11 +212,11 @@ distance:
     ret
 ```
 
-In situations like these, function inlining is clearly beneficial, and compilers mostly do it [automatically](/hpc/compilation/situational), but there are cases when it's not — and we will talk about them [in a bit](../layout).
+이런 상황에서는 함수 인라이닝이 명백한 이점을 가지며, 대부분의 경우 컴파일러가 이를 [자동으로](/hpc/compilation/situational)수행합니다. 하지만 항상 그런 것은 아니며, 이에 대해서는 [조금 뒤](../layout)에 더 자세히 다룰 것입니다.
 
-### Tail Call Elimination
+### 꼬리 호출 제거
 
-Inlining is straightforward to do when the callee doesn't make any other function calls, or at least if these calls are not recursive. Let's move on to a more complex example. Consider this recursive computation of a factorial:
+함수가 다른 함수를 호출하지 않거나, 최소한 이러한 호출이 재귀가 아닌 경우에는 인라이닝을 비교적 쉽게 수행할 수 있습니다. 이제 더 복잡한 예제로 넘어가봅시다. 아래는 팩토리얼을 재귀적으로 계산하는 예시입니다.
 
 ```cpp
 int factorial(int n) {
@@ -225,7 +226,7 @@ int factorial(int n) {
 }
 ```
 
-Equivalent assembly:
+이에 해당하는 어셈블리 코드는 다음과 같습니다.
 
 ```nasm
 ; n = edi, ret = eax
@@ -243,9 +244,9 @@ nonzero:
     ret
 ```
 
-If the function is recursive, it is still often possible to make it "call-less" by restructuring it. This is the case when the function is *tail recursive*, that is, it returns right after making a recursive call. Since no actions are required after the call, there is also no need for storing anything on the stack, and a recursive call can be safely replaced with a jump to the beginning — effectively turning the function into a loop.
+함수가 재귀적이라 하더라도 구조를 바꿔 호출을 제거할 수 있는 경우가 많습니다. 특히 함수가 꼬리 재귀일 경우, 즉 재귀 호출 직후 바로 반환하는 경우에 해당합니다. 호출 이후에 추가 동작이 필요 없기 때문에, 스택에 무언가를 저장할 필요가 없고 재귀 호출을 안전하게 함수 시작 지점으로의 점프로 바꿀 수 있습니다. 이는 사실상 해당 함수를 반복문으로 바꾸는 것입니다.
 
-To make our `factorial` function tail-recursive, we can pass a "current product" argument to it:
+`factorial`함수를 꼬리 재귀형으로 만들기 위해, 현재까지의 곱셈 결과를 인자로 전달할 수 있습니다.
 
 ```cpp
 int factorial(int n, int p = 1) {
@@ -255,7 +256,7 @@ int factorial(int n, int p = 1) {
 }
 ```
 
-Then this function can be easily folded into a loop:
+이 함수는 다음과 같이 반복문으로 쉽게 변환할 수 있습니다.
 
 ```nasm
 ; assuming n > 0
@@ -268,4 +269,4 @@ loop:
     ret
 ```
 
-The primary reason why recursion can be slow is that it needs to read and write data to the stack, while iterative and tail-recursive algorithms do not. This concept is very important in functional programming, where there are no loops and all you can use are functions. Without tail call elimination, functional programs would require way more time and memory to execute.
+재귀가 느려지는 주된 이유는 스택에 데이터를 읽고 쓰는 작업이 필요하기 때문입니다. 반면 반복문이나 꼬리 재귀 알고리즘은 그런 작업이 없습니다. 이 개념은 반복문 없이 함수만 사용하는 함수형 프로그래밍에서 특히 중요합니다. 꼬리 호출 제거가 없다면, 함수형 프로그래밍은 실행하는 데 훨씬 더 많은 시간과 메모리를 소비하게 될 것입니다.

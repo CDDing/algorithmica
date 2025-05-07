@@ -3,34 +3,35 @@ title: Instruction Set Architectures
 weight: -1
 ---
 
-As software engineers, we absolutely love building and using abstractions.
+소프트웨어 엔지니어는 추상화를 만들고 사용하는 것을 좋아합니다.
 
-Just imagine how much stuff happens when you load a URL. You type something on a keyboard; key presses are somehow detected by the OS and get sent to the browser; browser parses the URL and asks the OS to make a network request; then comes DNS, routing, TCP, HTTP, and all the other OSI layers; browser parses HTML; JavaScript works its magic; some representation of a page gets sent over to GPU for rendering; image frames get sent to the monitor… and each of these steps probably involves doing dozens of more specific things in the process.
+URL을 로드할 때 얼마나 많은 일이 일어나는지를 상상해보세요. 사용자가 키보드에 무언가를 입력하면 키 입력이 운영체제에 의해 감지되어 브라우저로 전달됩니다. 브라우저는 URL을 파싱하고 운영체제에 네트워크 요청을 하도록 요청합니다. 그러면 DNS, 라우팅, TCP, HTTP, 그리고 다른 OSI 계층들이 작동합니다. 브라우저는 HTML을 파싱하고, JavaScript가 동작합니다. 페이지의 일부 표현은 GPU로 전달되어 렌더링되며, 이미지 프레임은 모니터로 전송됩니다. 이 과정의 각 단계는 아마도 수십 개 이상의 더 세부적인 작업을 포함하고 있을 것입니다.
 
-Abstractions help us in reducing all this complexity down to a single *interface* that describes what a certain *module* can do without fixing a concrete implementation. This provides double benefits:
+추상화는 이 모든 복잡성을, 특정 모듈이 구체적인 구현에 의존하지 않고 어떤 기능을 수행할 수 있는지를 설명하는 단일 인터페이스로 축소하는 데 도움을 줍니다. 이는 두 가지 이점을 제공합니다.
 
-- Engineers working on higher-level modules only need to know the (much smaller) interface.
-- Engineers working on the module itself get the freedom to optimize and refactor its implementation as long as it complies with its *contracts*.
+- 고수준 모듈에서 작업하는 엔지니어는 훨씬 작은 인터페이스만 이해하면 됩니다.
+- 모듈 자체를 작업하는 엔지니어는 해당 계약을 준수하는 한, 구현을 자유롭게 최적화하고 리팩토링 할 수 있는 유연성을 갖습니다.
 
-Hardware engineers love abstractions too. An abstraction of a CPU is called an *instruction set architecture* (ISA), and it defines how a computer should work from a programmer's perspective. Similar to software interfaces, it gives computer engineers the ability to improve on existing CPU designs while also giving its users — us, programmers — the confidence that things that worked before won't break on newer chips.
+하드웨어 엔지니어 또한 추상화를 좋아합니다. CPU의 추상화는 명령어 집합 구조(Instruction Set Architecture, ISA)라고 하며, 이는 프로그래머 관점에서 컴퓨터가 어떻게 동작해야 하는지를 정의합니다. 이는 소프트웨어 인터페이스와 유사하게, 컴퓨터 엔지니어가 기존 CPU 설계를 개선할 수 있게 해주며, 사용자, 즉 우리 프로그래머들에게는 이전에 작동하던 프로그램이 새로운 칩에서도 계속 동작할 것이라는 신뢰를 제공합니다.
 
-An ISA essentially defines how the hardware should interpret the machine language. Apart from instructions and their binary encodings, an ISA also defines the counts, sizes, and purposes of registers, the memory model, and the input/output model. Similar to software interfaces, ISAs can be extended too: in fact, they are often updated, mostly in a backward-compatible way, to add new and more specialized instructions that can improve performance.
+ISA는 본질적으로 하드웨어가 기계어를 어떻게 해석해야 하는지를 정의합니다. 명령어와 그들의 바이너리 인코딩 외에도, ISA는 레지스터의 수와 크기 및 용도, 메모리 모델, 입출력 모델 등을 정의합니다. 소프트웨어 인터페이스처럼 ISA 또한 확장 가능합니다. 실제로 성능을 향상시키기 위해 새로운 특수 명령어를 추가하는 방식으로 업데이트 되며, 대부분은 이전 버전과의 호환성을 유지하도록 설계됩니다.
 
 ### RISC vs CISC
 
-Historically, there have been many competing ISAs in use. But unlike [character encodings and instant messaging protocols](https://xkcd.com/927/), developing and maintaining a completely separate ISA is costly, so mainstream CPU designs ended up converging to one of the two families:
+역사적으로 많은 경쟁 ISA들이 사용되어 왔습니다. 하지만 [문자 인코딩이나 인스턴트 메신저 프로토콜](https://xkcd.com/927/)
+과는 달리, 완전히 별개의 ISA를 개발하고 유지하는데는 많은 비용이 들기 때문에, 주요 CPU 설계는 결국 하나 혹은 두 개의 ISA 계열로 수렴하게 되었습니다.
 
-- **Arm** chips, which are used in almost all mobile devices, as well as other computer-like devices such as TVs, smart fridges, microwaves, [car autopilots](https://en.wikipedia.org/wiki/Tesla_Autopilot), and so on. They are designed by a British company of the same name, as well as a number of electronics manufacturers including Apple and Samsung.
-- **x86**[^x86] chips, which are used in almost all servers and desktops, with a few notable exceptions such as Apple's M1 MacBooks, AWS's Graviton processors, and the current [world's fastest supercomputer](https://en.wikipedia.org/wiki/Fugaku_(supercomputer)), all of which use Arm-based CPUs. They are designed by a duopoly of Intel and AMD.
+- 하나는 **Arm 칩**으로, 이는 대부분의 모바일 기기 뿐만 아니라 TV, 스마트 냉장고, 전자레인지, [자동차의 자율주행 시스템](https://en.wikipedia.org/wiki/Tesla_Autopilot)등 컴퓨터와 유사한 다양한 장치에 사용됩니다.이 칩은 동명의 영국 기업과 애플, 삼성 등 여러 전자기기 제조업체들에 의해 설계되었습니다.
+- 다른 하나는 **x86**[^x86] 칩입니다. 이는 대부분의 서버와 데스크탑에서 사용되며, 대표적인 예외로는 애플의 M1 맥북, AWS의 Graviton 프로세서, 그리고 현재 [세계에서 가장 빠른 슈퍼 컴퓨터](https://en.wikipedia.org/wiki/Fugaku_(supercomputer))등이 있습니다. 이들 모두는 Arm 기반 CPU를 사용합니다. x86칩은 인텔과 AMD라는 두 회사에 의해 독점적으로 설계되고 있습니다.
 
-[^x86]: Modern 64-bit versions of x86 are known as "AMD64," "Intel 64," or by the more vendor-neutral names of "x86-64" or just "x64." A similar 64-bit extension of Arm is called "AArch64" or "ARM64." In this book, we will just use plain "x86" and "Arm" implying the 64-bit versions.
+[^x86]: 현대 64비트 버전의 x86은 "AMD64", "Intel 64" 혹은 좀 더 제조사 중립적인 이름인 "x86-64" 혹은 "x64"로 알려져 있습니다. Arm의 유사한 64비트 확장은 "AArch64" 혹은 "ARM64"로 불립니다. 이 책에서는 64비트 버전을 나타내는 순수 "x86"과 "Arm"을 사용할 것입니다.
 
-The main difference between them is that of architectural complexity, which is more of a design philosophy rather than some strictly defined property:
+두 ISA의 가장 큰 차이는 구조적 복잡도이며, 이는 엄밀한 기술적 속성이라기보다는 설계 철학에 가깝습니다.
 
-- Arm CPUs are *reduced* instruction set computers (RISC). They improve performance by keeping the instruction set small and highly optimized, although some less common operations have to be implemented with subroutines involving several instructions.
-- x86 CPUs are *complex* instruction set computers (CISC). They improve performance by adding many specialized instructions, some of which may only be rarely used in practical programs.
+- Arm CPU는 RISC(**Reduced** Instruction Set Computer) 구조로, 명령어 집합을 작고 고도화된 형태로 유지함으로써 성능을 향상시킵니다. 다만, 일부 드물게 사용되는 연산은 여러 명령어로 구성된 서브루틴으로 구현해야 합니다.
+  x86 CPU는 CISC(**Complex** Instruction Set Computer) 구조로, 성능 향상을 위해 실제 프로그램에서 자주 사용되지 않는 특수한 명령어까지 포함하는 많은 명령어를 제공합니다.
 
-The main advantage of RISC designs is that they result in simpler and smaller chips, which projects to lower manufacturing costs and power usage. It's not surprising that the market segmented itself with Arm dominating battery-powered, general-purpose devices, and leaving the complex neural network and Galois field calculations to server-grade, highly-specialized x86s.
+RISC 설계의 가장 큰 장점은 더 단순하고 더 작은 칩을 만들 수 있다는 점이며, 이는 제조 비용 절감과 전력 소비 감소로 이어집니다. 따라서 Arm이 배터리 기반의 범용 장치를 지배하고, 복잡한 신경망 연산이나 갈루아 필드 계산 같은 고도로 특수화된 작업은 x86이 담당하게 된 시장 분화는 당연한 결과라고 볼 수 있습니다.
 
 <!--
 
