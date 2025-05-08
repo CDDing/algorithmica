@@ -4,20 +4,20 @@ weight: 2
 published: true
 ---
 
-When a CPU encounters a conditional jump or [any other type of branching](/hpc/architecture/indirect), it doesn't just sit idle until its condition is computed — instead, it starts *speculatively executing* the branch that seems more likely to be taken immediately. During execution, the CPU computes statistics about branches taken on each instruction, and after some time, they start to predict them by recognizing common patterns.
+CPU는 조건 점프나 [다른 유형의 분기](/hpc/architecture/indirect)를 만났을 때, 해당 조건이 계산될 때까지 대기하지 않고 즉시 실행될 가능성이 더 높은 분기를 예측하여 실행합니다. 실행 중, CPU는 각 명령어에서 취해진 분기의 통계를 계산하고, 시간이 지나면 이를 바탕으로 공통 패턴을 인식하여 예측을 시작합니다.
 
-For this reason, the true "cost" of a branch largely depends on how well it can be predicted by the CPU. If it is a pure 50/50 coin toss, you have to suffer a [control hazard](../hazards) and discard the entire pipeline, taking another 15-20 cycles to build up again. And if the branch is always or never taken, you pay almost nothing except checking the condition.
+이러한 이유로 실제 분기 비용은 CPU가 얼마나 잘 예측할 수 있느냐에 달려 있습니다. 만약 분기가 순수한 50 / 50 코인 토스라면, [제어 위험](../hazards)은 전체 파이프라인을 폐기한 뒤 다시 구축하는 데 15~20 사이클이 소요됩니다. 반면 분기가 항상 참이거나 거짓이라면 조건을 확인하는 것 외에는 거의 비용이 들지 않습니다.
 
-## An Experiment
+## 실험
 
-As a case study, we are going to create an array of random integers between 0 and 99 inclusive:
+실험삼아 0부터 99까지의 무작위 정수 배열을 생성해 봅시다.
 
 ```c++
 for (int i = 0; i < N; i++)
     a[i] = rand() % 100;
 ```
 
-Then we create a loop where we sum up all its elements under 50:
+그런 다음 50 이하의 원소에 대해 값을 모두 더하는 반복문을 생성합니다.
 
 ```c++
 volatile int s;
@@ -27,9 +27,9 @@ for (int i = 0; i < N; i++)
         s += a[i];
 ```
 
-We set $N = 10^6$ and run this loop many times over so that the [cold cache](/hpc/cpu-cache/bandwidth) effect doesn't mess up our results. We mark our accumulator variable as `volatile` so that the compiler doesn't vectorize the loop, interleave its iterations, or "cheat" in any other way.
+$N = 10^6$으로 설정하고 반복문을 여러 번 실행하여 [cold cache](/hpc/cpu-cache/bandwidth)효과가 결과에 영향을 미치지 않게 합니다. 또한 누산 변수 `s`를 `volatile`로 설정하여 컴파일러가 반복문을 벡터화하거나, 교차하거나, 다른 방식으로 최적화하지 않도록 합니다.
 
-On Clang, this produces assembly that looks like this:
+Clang에서 이는 다음과 같은 어셈블리 코드를 생성합니다.
 
 ```nasm
     mov  rcx, -4000000
@@ -45,17 +45,17 @@ body:
     jmp  counter
 ```
 
-Our goal is to simulate a completely unpredictable branch, and we successfully achieve it: the code takes ~14 CPU cycles per element. For a very rough estimate of what it is supposed to be, we can assume that the branches alternate between `<` and `>=`, and the pipeline is mispredicted every other iteration. Then, every two iterations:
+우리의 목표는 완전히 예측할 수 없는 분기를 시뮬레이션하는 것인데, 이를 성공적으로 달성했습니다. 코드가 원소당 약 14 CPU 사이클을 소요합니다. 대략적인 추정으로 분기가 `<`와 `>=` 사이를 번갈아 가며 진행되며, 파이프라인은 매번 잘못 예측됩니다. 그런 다음, 두 번의 반복마다 다음이 일어납니다.
 
-- We discard the pipeline, which is 19 cycles deep on Zen 2 (i.e., it has 19 stages, each taking one cycle).
-- We need a memory fetch and a comparison, which costs ~5 cycles. We can check the conditions of even and odd iterations concurrently, so let's assume we only pay it once per 2 iterations.
-- In the case of the `<` branch, we need another ~4 cycles to add `a[i]` to a volatile (memory-stored) variable `s`.
+- Zen 2에서 파이프라인 깊이는 19 사이클로, 즉 19 단계가 있으며 각 단계는 1 사이클씩 걸립니다.
+- 메모리 fetch와 비교가 필요하며, 이는 약 5사이클이 소요됩니다. 짝수와 홀수 반복의 조건을 동시에 체크할 수 있기 때문에, 이를 2번의 반복마다 한 번만 계산한다고 가정합시다.
+- `<` 분기의 경우, `a[i]`를 휘발성(메모리 저장) 변수 `s`에 더하는 데 약 4사이클이 추가로 필요합니다.
 
-Therefore, on average, we need to spend $(4 + 5 + 19) / 2 = 14$ cycles per element, matching what we measured.
+따라서 평균적으로 원소당 $(4 + 5 + 19) / 2 = 14$사이클이 소요되며, 이는 우리가 측정한 값과 일치합니다.
 
-### Branch Prediction
+### 분기 예측
 
-We can replace the hardcoded `50` with a tweakable parameter `P` that effectively sets the probability of the `<` branch:
+하드코딩된 `50`을 조정 가능한 파라미터 `P`로 바꾸어, `<` 분기의 확률을 설정할 수 있습니다.
 
 ```c++
 for (int i = 0; i < N; i++)
@@ -63,21 +63,21 @@ for (int i = 0; i < N; i++)
         s += a[i];
 ```
 
-Now, if we benchmark it for different values of `P`, we get an interesting-looking graph:
+이제 `P`의 값에 따라 벤치마크를 측정하면 흥미로운 그래프를 확인할 수 있습니다.
 
 ![](../img/probabilities.svg)
 
-Its peak is at 50-55%, as expected: branch misprediction is the most expensive thing here. This graph is asymmetrical: it takes just ~1 cycle to only check conditions that are never satisfied (`P = 0`), and ~7 cycles for the sum if the branch is always taken (`P = 100`).
+그래프의 최고점은 예상대로 50~55%에 위치합니다. 분기 예측 실패가 여기서 가장 비쌉니다. 이 그래프는 비 대칭적으로, 조건이 결코 만족되지 않는 경우(`P = 0`)에는 약 1사이클만 소요되고, 분기가 항상 참인 경우(`P = 100`)에는 합산이 약 7사이클이 소요됩니다.
 
-This graph is not unimodal: there is another local minimum at around 85-90%. We spend ~6.15 cycles per element there or about 10-15% faster than when we always take the branch, accounting for the fact that we need to perform fewer additions. Branch misprediction stops affecting the performance at this point because when it happens, not the whole instruction buffer is discarded, but only the operations that were speculatively scheduled. Essentially, that 10-15% mispredict rate is the equilibrium point where we can see far enough in the pipeline not to stall but still save 10-15% on taking the cheaper `>=` branch.
+이 그래프는 유니모달이 아닙니다. 대략 85~90%에서 또 다른 국소 최솟값이 나타납니다. 이 지점에서는 원소당 약 6.15 사이클을 소모하며, 이는 분기를 항상 취할 때보다 약 10~15% 더 빠릅니다. 이는 덜 추가 작업을 해야 하기 때문이며, 분기 예측 실패가 성능에 더 이상 영향을 미치지 않게 됩니다. 예측 실패가 발생하더라도 전체 명령어 버퍼는 폐기되지 않고, 추측적으로 예약된 작업만 폐기되기 때문입니다. 본질적으로, 10~15%의 예측 실패율은 파이프라인에서 충분히 멀리까지 확인할 수 있는 균형점으로, 여전히 더 저렴한 `>=` 분기를 선택하여 10~15%를 절약할 수 있습니다.
 
-Note that it costs almost nothing to check for a condition that never or almost never occurs. This is why programmers use runtime exceptions and base case checks so profusely: if they are indeed rare, they don't really cost anything.
+희귀하거나 거의 발생하지 않는 조건을 확인하는 데에는 거의 비용이 들지 않는 다는 사실을 기억합시다. 이는 프로그래머들이 런타임 예외와 기본 케이스 체크를 자주 사용하는 이유 중 하나입니다. 만약 그것이 정말로 드물다면, 사실상 아무 비용도 들지 않습니다.
 
-### Pattern Detection
+### 패턴 감지
 
-In our example, everything that was needed for efficient branch prediction is a hardware statistics counter. If we historically took branch A more often than branch B, then it makes sense to speculatively execute branch A. But branch predictors on modern CPUs are considerably more advanced than that and can detect much more complicated patterns.
+우리 예제에서, 효율적인 분기 예측을 위해 필요한 모든 것은 하드웨어 통계 카운터입니다. 만약 우리가 역사적으로 분기 A를 분기 B보다 더 자주 선택했다면, 분기 A를 추측하여 실행하는 것이 합리적입니다. 그러나 현대 CPU의 분기 예측기는 그보다 훨씬 더 발전하여 훨씬 복잡한 패턴도 감지할 수 있습니다.
 
-Let's fix `P` back at 50, and then sort the array first before the main summation loop:
+`P`를 50으로 다시 설정하고, 배열을 메인 합산 루프 이전에 정렬해보겠습니다.
 
 ```c++
 for (int i = 0; i < N; i++)
@@ -86,13 +86,14 @@ for (int i = 0; i < N; i++)
 std::sort(a, a + n);
 ```
 
-We are still processing the same elements, but in a different order, and instead of 14 cycles, it now runs in a little bit more than 4, which is exactly the average of the cost of the pure `<` and `>=` branches.
+우리는 여전히 동일한 원소를 처리하고 있지만, 이제 다른 순서로 처리하고 있습니다. 14사이클 대신 이제는 순수 `<`와 `>=`분기의 비용 평균인 4사이클 이상으로 실행됩니다.
 
-The branch predictor can pick up on much more complicated patterns than just "always left, then always right" or "left-right-left-right." If we just decrease the size of the array $N$ to 1000 (without sorting it), then the branch predictor memorizes the entire sequence of comparisons, and the benchmark again measures at around 4 cycles — in fact, even slightly fewer than in the sorted array case, because in the former case branch predictor needs to spend some time flicking between the "always yes" and "always no" states.
+분기 예측기는 단순히 "항상 왼쪽, 그 후 항상 오른쪽" 또는 "좌우좌우"처럼 단순한 패턴보다 훨씬 더 복잡한 패턴을 감지할 수 있습니다. 만약 배열 크기 $N$을 1000으로 줄인다면(정렬 없이), 분기 예측기는 전체 비교 순서를 기억하고 벤치마크는 다시 약 4사이클을 측정합니다. 실제로 이는 정렬된 배열의 경우보다 약간 더 적은 사이클인데, 이는 전자의 경우 분기 예측기가 "항상 예"와 "항상 아니오" 상태 사이를 전환하는 데 시간을 소모하기 때문입니다.
 
-### Hinting Likeliness of Branches
+### 적절한 분기에 대한 힌트
 
-If you know beforehand which branch is more likely, it may be beneficial to [pass that information](/hpc/compilation/situational) to the compiler:
+
+만약 어느 분기가 더 많이 선택될 지 미리 알 수 있다면, 이를 컴파일러에 [전달](/hpc/compilation/situational)하는 것이 유리할 수 있습니다.
 
 ```c++
 for (int i = 0; i < N; i++)
@@ -100,12 +101,12 @@ for (int i = 0; i < N; i++)
         s += a[i];
 ```
 
-When `P = 75`, it measures around ~7.3 cycles per element, while the original version without the hint needs ~8.3.
+`P = 75`일 때, 힌트가 없는 원본은 약 8.3 사이클인 반면, 힌트가 있는 버전은 원소당 약 7.3 사이클로 측정됩니다.
 
-This hint does not eliminate the branch or communicate anything to the branch predictor, but it changes the [machine code layout](/hpc/architecture/layout) in a way that lets the CPU front-end process the more likely branch slightly faster (although usually by no more than one cycle).
+이 힌트는 분기를 제거하거나 분기 예측기에 어떤 정보를 전달하는 것이 아니지만, CPU 프론트엔드가 더 가능성이 높은 분기를 약간 더 빠르게 처리하도록 [기계어 레이아웃](/hpc/architecture/layout)을 바꿉니다(보통 1사이클을 넘지는 않습니다).
 
-This optimization is only beneficial when you know which branch is more likely to be taken before the compilation stage. When the branch is fundamentally unpredictable, we can try to remove it completely using *predication* — a profoundly important technique that we are going to explore in [the next section](../branchless).
+이 최적화는 컴파일 단계 전에 어느 분기가 더 자주 실행될지 알 때만 유리합니다. 분기가 근본적으로 예측 불가능할 때는 이를 완전히 제거하려고 **예측 기법**을 사용합니다. 이는 우리가 [다음 글](../branchless)에서 다룰 매우 중요한 기법입니다.
 
 ### Acknowledgements
 
-This case study is inspired by [the most upvoted Stack Overflow question ever](https://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster-than-processing-an-unsorted-array).
+이 연구는 [가장 많은 추천을 받은 스택오버플로우 질문](https://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster-than-processing-an-unsorted-array)에서 영감을 받았습니다.

@@ -4,22 +4,22 @@ weight: 1
 published: true
 ---
 
-[Pipelining](../) lets you hide the latencies of instructions by running them concurrently, but also creates some potential obstacles of its own — characteristically called *pipeline hazards*, that is, situations when the next instruction cannot execute on the following clock cycle.
+[파이프라이닝](../)은 여러 명령어를 동시에 실행함으로써 지연 시간을 숨겨줄 수 있지만, 동시에 고유의 잠재적인 문제를 야기하기도 합니다. 이러한 문제들은 일반적으로 파이프라인 위험(pipeline hazard)라 불리며, 이는 다음 명령어가 다음 클럭 사이클에 실행될 수 없는 상황을 말합니다.
 
-There are multiple ways this may happen:
+이러한 문제가 발생하는 원인은 다양합니다.
 
-* A *structural hazard* happens when two or more instructions need the same part of CPU (e.g., an execution unit).
-* A *data hazard* happens when you have to wait for an operand to be computed from some previous step.
-* A *control hazard* happens when a CPU can't tell which instructions it needs to execute next.
+* **구조적 위험(structural hazard)**은 둘 이상의 명령어가 CPU의 동일한 자원(예: 실행 유닛)을 동시에 필요로 할 때 발생합니다.
+* **데이터 위험(data hazard)**은 앞선 단계에서 어떤 피연산자의 계산이 완료되기를 기다려야할 때 발생합니다.
+* **제어 위험(control hazard)**은 CPU가 다음에 어떤 명령어를 실행해야 할 지 알수 없을 때 발생합니다.
 
-The only way to resolve a hazard is to have a *pipeline stall*: stop the progress of all previous steps until the cause of congestion is gone. This creates *bubbles* in the pipeline — analogous with air bubbles in fluid pipes — a time-propagating condition when execution units are idling and no useful work is done.
+이러한 해저드를 해결하는 유일한 방법은, **파이프라인 정지(pipeline stall)**을 거는 것입니다. 이는 정체의 원인이 사라질 때까지 모든 이전 단계의 진행을 멈추는 것을 의미합니다. 이로 인해 파이프라인에 버블이 생기는데, 이는 마치 유체 파이프 안의 공기 방울처럼 실행 유닛들으 유휴 상태로 아무런 유용한 작업도 하지 않는 시간 지연 상태를 의미합니다.
 
 ![Pipeline stall on the execution stage](../img/bubble.png)
 
-Different hazards have different penalties:
+위험의 종류에 따라 성능에 미치는 영향도 다릅니다.
 
-- In structural hazards, you have to wait (usually one more cycle) until the execution unit is ready. They are fundamental bottlenecks on performance and can't be avoided — you have to engineer around them.
-- In data hazards, you have to wait for the required data to be computed (the latency of the *critical path*). Data hazards are solved by restructuring computations so that the critical path is shorter.
-- In control hazards, you generally have to flush the entire pipeline and start over, wasting a whole 15-20 cycles. They are solved by either removing branches completely, or making them predictable so that the CPU can effectively *speculate* on what is going to be executed next.
+- 구조적 위험은 실행 유닛이 준비될 때 까지(대개 1사이클 이상) 기다려야합니다. 이는 피할 수 없는 성능 병목이며, 이를 중심으로 아키텍처를 설계해야 합니다.
+- 데이터 위험은 필요한 데이터가 계산되기를 기다려야 하며, 이는 임계 경로(critical path)에 따른 지연입니다. 해결 방법은 계산 순서를 재구성하여 이 경로를 짧게 만드는 것입니다.
+- 제어 위험은 일반적으로 파이프라인 전체를 비우고 다시 시작해야 하므로 15~20 사이클이 낭비됩니다. 해결 방법은 분기를 아예 제거하거나, CPU가 다음 명령어를 예측할 수 있도록 만들어 분기 예측을 가능하게 하는 것입니다.
 
-As they have very different impacts on performance, we are going to go in the reversed order and start with the more grave ones.
+이 세 가지 위험은 성능에 미치는 영향이 다르므로, 우리는 가장 심각한 것부터 시작하여 역순으로 살펴볼 것입니다.

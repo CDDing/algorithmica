@@ -3,16 +3,16 @@ title: Throughput Computing
 weight: 4
 ---
 
-Optimizing for *latency* is usually quite different from optimizing for *throughput*:
+**지연**을 최적화하는 것과 **처리량**을 최적화하는 것은 보통 전혀 다른 접근을 필요로 합니다.
 
-- When optimizing data structure queries or small one-time or branchy algorithms, you need to [look up the latencies](../tables) of its instructions, mentally construct the execution graph of the computation, and then try to reorganize it so that the critical path is shorter. <!-- [Binary GCD](/hpc/algorithms/gcd) is a good example of that. -->
-- When optimizing hot loops and large-dataset algorithms, you need to look up the throughputs of their instructions, count how many times each one is used per iteration, determine which of them is the bottleneck, and then try to restructure the loop so that it is used less often.
+- 자료구조 조회나 단발성 또는 분기가 많은 알고리즘을 최적화할 때는, 해당 명령어의 [지연 시간을 확인](../tables)하고, 계산의 실행 그래프를 머릿속으로 구성한 뒤, 임계 경로(critical path)를 최대한 줄이도록 재구성해야 합니다. <!-- [Binary GCD](/hpc/algorithms/gcd) is a good example of that. -->
+- 반면, 반복적으로 수행되는 루프나 대규모 데이터 셋을 처리하는 알고리즘을 최적화할 때는, 명령어의 처리량을 확인하고, 루프 한 번의 반복마다 각 명령어가 몇 번 사용되는지를 세어본 다음, 어떤 명령어가 병목이 되는지를 파악하여, 해당 명령어의 사용을 줄이도록 루프 구조를 바꿔야 합니다.
 
-The last advice only works for *data-parallel* loops, where each iteration is fully independent of the previous one. When there is some interdependency between consecutive iterations, there may potentially be a pipeline stall caused by a [data hazard](../hazards) as the next iteration is waiting for the previous one to complete.
+이러한 처리량 기반의 최적화는 각 반복이 이전 반복과 완전히 독립적인 데이터 병렬 루프에서만 유효합니다. 반복 간 상호 의존성이 존재한다면, 이전 반복이 완료될 때가지 다음 반복이 대기해야 하므로, [데이터 위험](../hazards)으로 인해 파이프라인 정지가 발생할 수 있습니다.
 
-### Example
+### 예제
 
-As a simple example, consider how the sum of an array is computed:
+배열의 합을 계산하는 간단한 예를 보겠습니다.
 
 ```c++
 int s = 0;
@@ -21,7 +21,7 @@ for (int i = 0; i < n; i++)
     s += a[i];
 ```
 
-Let's assume for a moment that the compiler doesn't [vectorize](/hpc/simd) this loop, [the memory bandwidth](/hpc/cpu-cache/bandwidth) isn't a concern, and that the loop is [unrolled](/hpc/architecture/loops) so that we don't pay any additional cost associated with maintaining the loop variables. In this case, the computation becomes very simple:
+이 루프를 컴파일러가 [벡터화](/hpc/simd)하지 않고, [메모리 대역폭](/hpc/cpu-cache/bandwidth)도 문제가 되지 않으며, 루프가 [펼쳐져](/hpc/architecture/loops) 루프 변수 유지에 드는 비용도 없다고 가정합시다. 이 경우 계산은 매우 단순해집니다.
 
 ```c++
 int s = 0;
@@ -32,13 +32,13 @@ s += a[3];
 // ...
 ```
 
-How fast can we compute this? At exactly one cycle per element — because we need one cycle each iteration to `add` another value to `s`. The latency of the memory read doesn't matter because the CPU can start it ahead of time.
+이 코드를 얼마나 빠르게 계산할 수 있을까요? 각 원소마다 정확히 한 사이클이 걸립니다. 각 반복마다 `s`에 값을 하나 더하기 위해 `add` 명령어가 한 사이클을 차지하기 때문입니다. 메모리 접근 지연은 영향을 주지 않습니다. CPU는 메모리 읽기를 미리 시작할 수 있기 때문입니다.
 
-But we can go higher than that. The *throughput* of `add`[^throughput] is 2 on my CPU (Zen 2), meaning we could theoretically execute two of them every cycle. But right now this isn't possible: while `s` is being used to accumulate $i$-th element, it can't be used for $(i+1)$-th for at least one cycle.
+하지만 여기서 더 빨라질 수도 있습니다. 예를 들어 Zen 2 아키텍처의 CPU에서는 `add` 명령어의 처리량[^throughput]이 2이므로, 이론적으로 매 사이클마다 `add` 명령어를 두 번 실행할 수 있습니다. 그러나 현재 구조에서는 그럴 수 없습니다. `s`가 $i$번째 값을 누적하는 동안, 최소 한 사이클 동안 $(i+1)$번째 값은 누적할 수 없기 때문입니다. 
 
-[^throughput]: The throughput of register-register `add` is 4, but since we are reading its second operand from memory, it is bottlenecked by the throughput of memory `mov`, which is 2 on Zen 2.
+[^throughput]: 레지스터 간 `add`의 처리량은 4이지만, 두 번째 피연산자를 메모리에서 읽어오기 때문에 Zen 2에서는 메모리 `mov` 명령어의 처리량인 2가 병목이 됩니다.
 
-The solution is to use *two* accumulators and just sum up odd and and even elements separately:
+이 문제는 누산기를 2개로 늘려 짝수와 홀수 인덱스의 값을 따로 누적하면 해결됩니다.
 
 ```c++
 int s0 = 0, s1 = 0;
@@ -50,7 +50,7 @@ s1 += a[3];
 int s = s0 + s1;
 ```
 
-Now our superscalar CPU can execute these two "threads" simultaneously, and our computation no longer has any critical paths that limit the throughput.
+이제 슈퍼 스칼라 CPU는 두 쓰레드를 병렬로 실행할 수 있으며, 계산은 처리량에 의해 제한되지 않게 됩니다.
 
 <!--
 
@@ -58,13 +58,13 @@ By the virtue of out-of-order execution
 
 -->
 
-### The General Case
+### 일반적인 경우
 
-If an instruction has a latency of $x$ and a throughput of $y$, then you would need to use $x \cdot y$ accumulators to saturate it. This also implies that you need $x \cdot y$ logical registers to hold their values, which is an important consideration for CPU designs, limiting the maximum number of usable execution units for high-latency instructions.
+어떤 명령어가 지연시간 $x$와 처리량 $y$를 갖는다면, 해당 명령어의 성능을 완전히 포화시키기 위해서는 $x \cdot y$개의 누산기를 사용하는 것이 이상적입니다. 이는 $x \cdot y$개의 논리 레지스터가 필요하다는 뜻이기도 하며, 이는 고지연 명령어를 위한 실행 유닛 수를 제한하는 CPU 설계에서 중요한 고려사항이 됩니다.
 
-This technique is mostly used with [SIMD](/hpc/simd) and not in scalar code. You can [generalize](/hpc/simd/reduction) the code above and compute sums and other reductions faster than the compiler.
+이러한 기법은 주로 [SIMD](/hpc/simd) 환경에서 사용되며, 스칼라 코드에는 거의 적용되지 않습니다. 위의 코드를 [일반화](/hpc/simd/reduction)하면, 합산이나 그 외의 축소 연산을 컴파일러보다 빠르게 수행할 수도 있습니다.
 
-In general, when optimizing loops, you usually have just one or a few *execution ports* that you want to utilize to their fullest, and you engineer the rest of the loop around them. As different instructions may use different sets of ports, it is not always clear which one is going to be overused. In situations like this, [machine code analyzers](/hpc/profiling/mca) can be very helpful for finding the bottlenecks of small assembly loops.
+반복문을 최적화할 때 일반적으로는 소수의 실행 포트를 최대한 활용하는 것이 중요하며, 나머지 루프 구조는 이를 중심으로 설계됩니다. 명령어마다 사용하는 실행 포트가 다르기 때문에, 어떤 포트가 과다하게 사용될지는 쉽게 예측할 수 없습니다. 이런 경우, [기계 코드 분석기](/hpc/profiling/mca)를 사용하면 짧은 어셈블리 루프의 병목을 파악하는데 매우 유용합니다.
 
 <!--
 
