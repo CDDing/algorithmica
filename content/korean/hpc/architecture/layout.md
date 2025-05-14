@@ -62,7 +62,6 @@ The memory system can therefore become the bottleneck for programs with large ma
 
 ### 불일치 분기
 
-Suppose that for some reason you need a helper function that calculates the length of an integer interval. It takes two arguments, $x$ and $y$, but for convenience, it may correspond to either $[x, y]$ or $[y, x]$, depending on which one is non-empty. In plain C, you would probably write something like this:
 정수 간격의 길이를 계산하는 함수가 필요하다고 가정해보겠습니다. 이 함수는 두 인자, `x`와 `y`를 받지만, 편의상 `[x, y]` 또는 `[y, x]`의 형태로 비어있지 않은 구간을 처리할 수 있습니다. C에서는 다음과 같은 코드를 작성할 수 있을 것입니다.
 
 ```c++

@@ -4,35 +4,36 @@ weight: 1
 ---
 
 Before jumping straight to compiler optimizations, which is what most of this chapter is about, let's briefly recap the "big picture" first. Skipping the boring parts, there are 4 stages of turning C programs into executables:
+본격적으로 다룰 컴파일러 최적화 이야기에 들어가기 전에, 먼저 전체적인 흐름을 간단히 되짚어 보겠습니다. 자잘한 부분을 생략하면, C 프로그램이 실행 파일로 변환되는 과정은 네 단계로 나눌 수 있습니다.
 
-1. **Preprocessing** expands macros, pulls included source from header files, and strips off comments from source code: `gcc -E source.c` (outputs preprocessed source to stdout)
-2. **Compiling** parses the source, checks for syntax errors, converts it into an intermediate representation, performs optimizations, and finally translates it into assembly language: `gcc -S file.c` (emits an `.s` file)
-3. **Assembly** turns assembly language into machine code, except that any external function calls like `printf` are substituted with placeholders: `gcc -c file.c` (emits an `.o` file, called *object file*)
-4. **Linking** finally resolves the function calls by plugging in their actual addresses, and produces an executable binary: `gcc -o binary file.c`
+1. **전처리** 단계에서는 매크로를 확장하고, 헤더 파일에서 포함된 코드를 불러오며, 소스 코드의 주석을 제거합니다. `gcc -E source.c` 명령어는 전처리된 소스를 표준 출력으로 출력합니다.
+2. **컴파일** 단계에서는 소스 코드를 파싱해 문법 오류를 검사하고, 중간 표현(IR)로 변환한 후, 최적화를 수행하며, 최종적으로 어셈블리어로 변환합니다. `gcc -S file.c`는 `.s` 어셈블리 파일을 생성합니다.
+3. **어셈블리** 단계에서는 어셈블리어를 기계어로 변환합니다. 단, `printf` 같은 외부 함수 호출은 위치 표시자(placeholder)로 대체됩니다. `gcc -c file.c` 명령어는 오브젝트 파일(`.o`)을 생성합니다.
+4. **링킹** 단계에서는 최종적으로 외부 함수 호출을 실제 주소로 연결하고, 실행 가능한 바이너리 파일을 만들어냅니다. `gcc -o binary file.c` 명령어로 실행 파일을 생성할 수 있습니다.
 
-There are possibilities to improve program performance in each of these stages.
+각 단계마다 성능을 향상시킬 수 있는 여지가 있습니다.
 
-### Interprocedural Optimization
+### 절차 간 최적화
 
-We have the last [stage](../stages), linking, because it is is both easier and faster to compile programs on a file-by-file basis and then link those files together — this way you can do this in parallel and also cache intermediate results.
+링크 [단계](../stages)를 마지막에 두는 이유는 프로그램을 파일 단위로 개별적으로 컴파일한 뒤 이를 하나로 연결하는 방식이 더 쉽고 빠르기 때문입니다. 이러한 방식은 병렬 처리가 가능하며, 중간 결과를 캐싱할 수도 있습니다.
 
-It also gives the ability to distribute code as *libraries*, which can be either *static* or *shared*:
+또한 이 방식은 코드를 라이브러리 형태로 배포할 수 있게 해주며, 이는 정적(static) 또는 동적 라이브러리가 가능합니다.
 
-- *Static* libraries are simply collections of precompiled object files that are merged with other sources by the compiler to produce a single executable, just as it normally would.
-- *Dynamic* or *shared* libraries are precompiled executables that have additional meta-information about where their callables are, references to which are resolved during runtime. As the name suggests, this allows *sharing* the compiled binaries between multiple programs.
+- **정적 라이브러리**는 사전에 컴파일된 오브젝트 파일들의 모음이며, 컴파일러가 이들을 다른 소스들과 병합하여 하나의 실행 파일로 만듭니다.
+- **동적(혹은 Shared) 라이브러리**는 실행 가능한 상태로 사전 컴파일된 파일이며, 호출 가능한 함수들의 위치 정보와 런타임 중 참조 처리를 위한 메타데이터를 포함합니다. 이름에서 알 수 있듯이, 여러 프로그램이 이러한 바이너리를 공유할 수 있도록 합니다.
 
-The main advantage of using static libraries is that you can perform various *interprocedural optimizations* that require more context than just the signatures of library functions, such as [function inlining](/hpc/architecture/functions) or dead code elimination. To force the linker to look for and only accept static libraries, you can pass the `-static` option.
+정적 라이브러리를 사용할 때의 주요 이점은, 함수의 시그니처만으로는 불가능한 다양한 함수 간 최적화(interprocedural optimization)를 수행할 수 있다는 점입니다. 예를 들어 [함수 인라이닝](/hpc/architecture/functions)이나 사용되지 않는 코드 제거(dead code elimination)등이 있습니다. 링커가 정적 라이브러리만을 찾고 사용하도록 강제하려면 `-static` 옵션을 사용하면 됩니다.
 
-This process is called *link-time optimization (LTO)*, and it is possible because modern compilers also store some form of *intermediate representation* in object files, which allows them to perform certain lightweight optimizations on the program as a whole. This also allows using different compiled languages in the same program, which can even be optimized across language barriers if their compilers use the same intermediate representation.
+이러한 과정을 링크 타임 최적화(LTO)라고 하며, 이는 최신 컴파일러가 오브젝트 파일 안에 중간 표현(Intermediate Representation)을 함께 저장하기 때문에 가능합니다. 덕분에 프로그램 전체에 걸쳐 가벼운 최적화를 수행할 수 있습니다. 또한, 동일한 IR을 사용하는 컴파일러를 통해 서로 다른 언어로 작성된 코드라도 하나의 프로그램에서 함께 사용하고, 언어의 경계를 넘어 최적화하는 것도 가능해집니다.
 
-LTO is a relatively recent feature (it appeared in GCC only around 2014), and it is still far from perfect. In C and C++, the way to make sure no performance is lost due to separate compilation is to create a *header-only library*. As the name suggests, they are just header files that contain full definitions of all functions, and so by simply including them, the compiler gets access to all optimizations possible. Although you do have to recompile the library code from scratch each time, this approach retains full control and makes sure that no performance is lost.
+LTO는 비교적 최근에 등장한 기능으로, GCC에는 2014년경에 도입되었으며 아직 완전하지는 않습니다. C나 C++에서는 별도 컴파일로 인한 성능 손실을 방지하기 위해 헤더 전용 라이브러리를 사용하느 것이 일반적입니다. 이름 그대로, 이러한 라이브러리는 모든 함수 정의가 포함된 헤더 파일로 구성되어 있으며, 단순히 `#include`만으로 컴파일러가 모든 최적화 정보를 활용할 수 있게 됩니다. 비록 매번 라이브러리 코드를 처음부터 다시 컴파일해야 하지만, 이 방식은 전체 제어권을 유지할 수 있으며 성능 저하를 방지하는 데 가장 효과적입니다.
 
-### Inspecting the Output
+### 출력 살펴보기
 
-Examining output from each of these stages can yield useful insights into what's happening in your program.
+각 단계에서의 출력을 살펴보면 프로그램 내부에서 어떤 일이 벌어지고 있는지를 이해하는 데 유용한 통찰을 얻을 수 있습니다.
 
-You can get assembly from the source by passing the `-S` flag to the compiler, which will then generate a human-readable `*.s` file. If you pass `-fverbose-asm`, this file will also contain compiler comments about source code line numbers and some info about variables being used. If it is just a little snippet and you are feeling lazy, you can use [Compiler Explorer](https://godbolt.org/), which is a very handy online tool that converts source code to assembly, highlights logical asm blocks by color, includes a small x86 instruction set reference, and also has a large selection of other compilers, targets, and languages.
+`-S` 플래그를 컴파일러에 전달하면 소스 코드로부터 어셈블리 코드를 얻을 수 있으며, 이때 사람이 읽을 수 있는 `*.s` 파일이 생성됩니다. 여기에 `-fverbose-asm` 옵션까지 함께 전달하면, 해당 파일에는 각 소스 코드 줄 번호에 대한 컴파일러의 주석과 사용된 변수에 대한 일부 정보도 포함됩니다. 단지 짧은 코드 조각만 확인하고 싶고 귀찮게 느껴진다면, [Compiler Explorer](https://godbolt.org/)를 사용할 수 있습니다. 이 도구는 소스 코드를 어셈블리로 변환해주고, 논리적인 어셈블리 블록을 색상으로 강조해주며, 간단한 x86 참조와 다양한 컴파일러, 타겟, 언어 선택 기능을 제공하는 매우 유용한 온라인 툴입니다.
 
-Apart from the assembly, the other most helpful level of abstraction is the intermediate representation on which compilers perform optimizations. The IR defines the flow of computation itself and is much less dependent on architecture features like the number of registers or a particular instruction set. It is often useful to inspect these to get insight into how the compiler *sees* your program, but this is a bit out of the scope of this book.
+어셈블리 외에도, 컴파일러가 최적화를 수행하는 데 사용하는 중간 표현은 또 하나의 중요한 추상화 수준입니다. IR은 연산 흐름 자체를 정의하며, 레지스터 수나 특정 명령어 집합 같은 아키텍처의 세부사항에 훨씬 덜 의존적입니다. 이 IR을 살펴보면 컴파일러가 프로그램을 어떻게 이해하고 있는지에 대한 통찰을 얻을 수 있지만, 이는 이 책의 범위를 벗어나므로 다루지 않을 것입니다.
 
-We will mainly use [GCC](https://gcc.gnu.org/) in this chapter, but also try to duplicate examples for [Clang](https://clang.llvm.org/) when necessary. The two compilers are largely compatible with each other, for the most part only differing in some optimization flags and minor syntax details.
+이 장에서는 주로 [GCC](https://gcc.gnu.org/)를 활용할 것이지만, 필요에 따라 [Clang](https://clang.llvm.org/)으로도 예제를 재현해볼 것입니다. 두 컴파일러는 대부분 호환되며, 일부 최적화 플래그나 문법 세부사항 정도만 다릅니다.

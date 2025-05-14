@@ -4,38 +4,38 @@ weight: 2
 published: true
 ---
 
-The first step of getting high performance from the compiler is to ask for it, which is done with over a hundred different compiler options, attributes, and pragmas.
+컴파일러로부터 고성능을 얻기 위한 첫 번째 단계는 그것을 요청하는 것입니다. 이를 위해 100개가 넘는 다양한 컴파일러 옵션, 속성(attribute), 그리고 pragma를 사용할 수 있습니다.
 
-### Optimization Levels
+### 최적화 수준
 
-There are 4 *and a half* main levels of optimization for speed in GCC:
+GCC에는 속도를 위한 주요 최적화 단계가 약 4단계가 있습니다.
 
-- `-O0` is the default one that does no optimizations (although, in a sense, it does optimize: for compilation time).
-- `-O1` (also aliased as `-O`) does a few "low-hanging fruit" optimizations, almost not affecting the compilation time.
-- `-O2` enables all optimizations that are known to have little to no negative side effects and take a reasonable time to complete (this is what most projects use for production builds).
-- `-O3` does very aggressive optimization, enabling almost all *correct* optimizations implemented in GCC.
-- `-Ofast` does everything in `-O3`, plus a few more optimizations flags that may break strict standard compliance, but not in a way that would be critical for most applications (e.g., floating-point operations may be rearranged so that the result is off by a few bits in the mantissa).
+- `-O0`은 최적화를 전혀 수행하지 않는 기본 설정입니다(어떤 관점에서는 컴파일 시간을 최적화한다고 할 수도 있습니다).
+- `-O1` (`-O`와 동일)은 몇 가지 쉬운 최적화만 수행하며, 컴파일 시간에는 거의 영향을 주지 않습니다.
+- `-O2`는 부작용이 거의 없고 컴파일 시간도 합리적인 것으로 알려진 모든 최적화를 활성화합니다(대부분의 프로젝트에서 릴리즙 ㅣㄹ드 시 사용합니다).
+- `-O3`은 매우 공격적인 최적화를 수행하며, GCC에 구현된 대부분의 정확한 최적화를 활성화합니다.
+- `-Ofast`는 `-O3`의 모든 최적화에 더해, 일부 엄격한 표준 준수를 위반할 수도 있는 최적화도 추가로 수행합니다. 하지만 이는 대부분의 애플리케이션에 치명적인 수준은 아닙니다. 예를 들어 부동소수점 연산 순서가 바뀌어 가수부가 몇 비트 달라질 수도 있습니다.
 
-There are also many other optimization flags that are not included even in `-Ofast`, because they are very situational, and enabling them by default is more likely to hurt performance rather than improve it — we will talk about some of them in [the next section](../situational).
+`-Ofast`에 포함되지 않은 많은 최적화 플래그들도 존재하는데, 이들은 매우 특정한 상황에서만 유효하기 때문에 기본적으로 활성화하면 성능을 개선하기보다는 저하시킬 가능성이 큽니다. 이러한 플래그들은 [다음 글](../situational)에서 다룰 것입니다.
 
-### Specifying Targets
+### 타겟 지정하기
 
-The next thing you may want to do is to tell the compiler more about the computer(s) this code is supposed to be run on: the smaller the set of platforms is, the better. By default, it will generate binaries that can run on any relatively new (>2000) x86 CPU. The simplest way to narrow it down is to pass `-march` flag to specify the exact microarchitecture: `-march=haswell`. If you are compiling on the same computer that will run the binary, you can use `-march=native` for auto-detection.
+다음으로는 코드가 실행될 컴퓨터에 대해 더 많은 정보를 컴파일러에 알려주는 것이 좋습니다. 대상 플랫폼의 범위가 명확할수록 더 좋습니다. 기본적으로는 2000년 이후 출시된 대부분의 x86 CPU에서 동작 가능한 범용 바이너리를 생성합니다. 가장 간단하게 좁히는 방법은 `-march=haswell`처럼 `-march` 플래그를 통해 정확한 마이크로아키텍처를 지정하는 것입니다. 바이너리를 실행할 컴퓨터에서 직접 컴파일을 수행한다면, `-march=native`를 사용하여 자동 감지가 가능합니다.
 
-The instruction sets are generally backward-compatible, so it is often enough to just use the name of the oldest microarchitecture you need to support. A more robust approach is to list specific features that the CPU is guaranteed to have: `-mavx2`, `-mpopcnt`. When you just want to *tune* the program for a particular machine without using any instructions that may crash it on incompatible CPUs, you can use the `-mtune` flag (by default `-march=x` also implies `-mtune=x`).
+명령어 집합은 일반적으로 하위 호환되므로, 지원해야 하는 가장 오래된 마이크로아키텍처의 이름만 지정해도 충분한 경우가 많습니다. 좀 더 견고한 방식은 CPU가 반드시 지원해야 하는 특정 기능(예: `-mavx2`, `-mpopcnt`)을 명시하는 것입니다. 특정 머신에 맞게 프로그램을 최적화하되, 호환되지 않는 CPU에서 크래시가 발생할 수 있는 명령어를 사용하지 않으려면 `-mtune` 플래그를 사용할 수 있습니다(참고로 `-march=x` 기본적으로 `mtune=x`도 포함합니다).
 
-These options can also be specified for a compilation unit with pragmas instead of compilation flags:
+이러한 옵션들은 컴파일 플래그 대신, 소스 코드 내에서 pragma를 통해 컴파일 단위에 지정할 수도 있습니다.
 
 ```c++
 #pragma GCC optimize("O3")
 #pragma GCC target("avx2")
 ```
 
-This is useful when you need to optimize a single high-performance procedure without increasing the build time for the entire project.
+전체 프로젝트의 빌드 시간을 늘리지 않고, 특정 고성능 루틴만 별도로 최적화하고 싶을 때 유용합니다.
 
-### Multiversioned Functions
+### 다양한 버전의 함수들
 
-Sometimes you may also want to provide several architecture-specific implementations in a single library. You can use attribute-based syntax to select between multiversioned functions automatically during compile time:
+때때로 하나의 라이브러리 안에 여러 아키텍처에 특화된 구현을 함께 제공하고 싶을 수도 있습니다. 이럴 때는 속성 기반 문법을 제공하여 컴파일 시간에 여러 버전의 함수 중 하나를 자동으로 선택할 수 있습니다.
 
 ```c++
 __attribute__(( target("default") )) // fallback implementation
@@ -52,4 +52,4 @@ int popcnt(int x) {
 }
 ```
 
-In Clang, you can't use pragmas to set target and optimization flags from the source code, but you can use attributes the same way as in GCC.
+Clang에서는 pragma를 이용해 소스코드에서 타겟이나 최적화 플래그를 설정할 수는 없지만, GCC와 동일한 방식으로 attribute는 사용할 수 있습니다.

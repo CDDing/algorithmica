@@ -3,25 +3,25 @@ title: Contract Programming
 weight: 6
 ---
 
-In "safe" languages like Java and Rust, you normally have well-defined behavior for every possible operation and every possible input. There are some things that are *under-defined*, like the order of keys in a hash table or the growth factor of an `std::vector`, but these are usually some minor details that are left up to implementation for potential performance gains in the future.
+Java나 Rust같은 안전한 언어에서는 일반적으로 가능한 모든 연산과 입력에 대해 잘 정의된 동작이 존재합니다. 해시 테이블의 키 순서나 `std::vector`의 성장 계수 같은 세부적인 요소는 구현에 따라 달라질 수 있는 정의 미비 요소로 남아있지만, 이는 보통 성능 최적화 가능성을 위해 의도적으로 남겨진 사소한 세부사항입니다.
 
-In contrast, C and C++ take the concept of undefined behavior to another level. Certain operations don't cause an error during compilation or runtime but are just not *allowed* — in the sense of there being a *contract* between the programmer and the compiler, that in case of undefined behavior, the compiler is legally allowed to do literally anything, including blowing up your monitor or formatting your hard drive. But compiler engineers are not interested in doing that. Instead, undefined behavior is used to guarantee a lack of corner cases and help optimization.
+반면, C와 C++은 미정의 동작(undefined behaviour) 개념을 훨씬 더 심화시켰습니다. 어떤 연산들은 컴파일 타임이나 런타임에서 명시적인 에러를 발생시키진 않지만, 허용되지 않은 동작입니다. 즉, 프로그래머와 컴파일러 사이의 일종의 계약으로 간주되며, 미정의 동작이 발생했을 경우 컴파일러는 이론상 어떤 행동도 합법적으로 수행할 수 있습니다. 예를 들어, 모니터를 폭파하거나 하드디스크를 포맷할 수도 있다는 말은 과장이지만, 그만큼 아무 보장도 없다는 의미입니다. 물론 컴파일러 엔지니어들이 실제로 그렇게 터무니없는 행동을 하려는 건 아니며, 대신 최적화를 극대화하고 특이 케이스를 줄이기 위해 미정의 동작을 적극 활용합니다.
 
-### Why Undefined Behavior Exists
+### 왜 미정의 동작이 존재하는가
 
-There are two major groups of actions that cause undefined behavior:
+미정의 동작이 발생하는 경우는 크게 두 부류로 나눌 수 있습니다.
 
-- Operations that are almost certainly unintentional bugs, like dividing by zero, dereferencing a null pointer, or reading from uninitialized memory. You want to catch these as soon as possible during testing, so crashing or having some non-deterministic behavior is better than having them always do a fixed fallback action such as returning zero.
+- 거의 대부분 의도하지 않은 버그로 간주되는 연산(예: 0으로 나누기, null 포인터 역참조, 초기화되지 않은 메모리 읽기 등) : 이러한 동작들은 테스트 도중에 최대한 빨리 드러나야 하므로, 예측 가능한 대체값(예: 0 반환)으로 고정하는 것보다 크래시를 일으키거나 비결정적인 행동을 하는 편이 더 낫습니다.
 
-  You can compile and run a program with *sanitizers* to catch undefined behavior early. In GCC and Clang, you can use the `-fsanitize=undefined` flag, and some operations that are notorious for causing UB will be instrumented to detect it at runtime.
+  GCC나 Clang에서는 `-fsanitize=undefined` 플래그를 통해 런타임 시점에 이런 문자를 잡아주는 sanitizer를 사용할 수 있습니다. 이 옵션은 미정의동작을 유발하는 것으로 알려진 연산들에 대해 런타임 감지 코드를 삽입합니다.
 
-- Operations that have slightly different observable behavior on different platforms. For example, the result of left-shifting an integer by more than 31 bits is undefined, because the instruction that does it is implemented differently on Arm and x86 CPUs. If you standardize one specific behavior, then all programs compiled for the other platform will have to spend a few more cycles checking for that edge case, so it is best to leave it undefined.
+- 플랫폼마다 관측 가능한 동작이 약간씩 다른 연산(예: 정수를 31비트 이상 왼쪽 쉬프트) : 이러한 연산은 Arm과 x86처럼 서로 다른 아키텍처에서 다르게 구현되므로, 단일 표준 동작으로 고정하면 다른 플랫폼에서는 추가적인 검사 비용이 발생합니다. 따라서 이를 미정의로 남겨두는 것이 더 낫습니다.
 
-  Sometimes, when there is a legitimate use case for some platform-specific behavior, instead of declaring it undefined, it can be left *implementation-defined*. For example, the result of right-shifting a [negative integer](/hpc/arithmetic/integer) depends on the platform: it either shifts in zeros or ones (e.g., right-shifting `11010110 = -42` by one may mean either `01101011 = 107` or `11101011 = -21`, both use cases being realistic).
+  때로는 플랫폼 특화 동작에 타당한 사용 사례가 있는 경우, 이를 미정의로 두는 대신 구현 정의로 둘 수 있습니다. 예를 들어, [음수 정수](/hpc/arithmetic/integer)를 오른쪽으로 시프트할 경우의 결과는 플랫폼마다 다릅니다. 어떤 플랫폼은 왼쪽에 0을 채우고, 어떤 플랫폼은 1을 채웁니다. 예컨대 `11010110 = -42`를 한 비트 오른쪽으로 시프트하면 `01101011 = 107`이 될 수도 있고, `11101011 = -21`이 될 수도 있습니다. 이 두 경우 모두 실제로 존재하는 타당한 사용 사례입니다.
 
-Designating something as undefined instead of implementation-defined behavior also helps compilers in optimization. Consider the case of signed integer overflow. On almost all architectures, [signed integers](/hpc/arithmetic/integer) overflow the same way as unsigned ones, with `INT_MAX + 1 == INT_MIN`, and yet, this is undefined behavior according to the C++ standard. This is very much intentional: if you disallow signed integer overflow, then `(x + 1) > x` is guaranteed to be always true for `int`, but not for `unsigned int`, because `(x + 1)` may overflow. For signed types, this lets compilers optimize such checks away.
+어떤 동작을 구현 정의가 아닌 미정의로 두는 것은 컴파일러에 최적화에 도움이 됩니다. 예를 들어, singed 정수의 오버플로우를 생각해봅시다. 대부분의 아키텍처에서 [signed 정수](/hpc/arithmetic/integer)는 unsigned 정수처럼 오버플로우 되며, `INT_MAX + 1 == INT_MIN`이 됩니다. 하지만 C++ 표준에서는 이를 미정의 동작으로 간주합니다. 이는 의도적인 설계입니다. 만약 singed 오버플로우가 허용되지 않는다면 `(x + 1) > x`는 `int` 타입에서는 항상 참이 됩니다. 반면 `unsigned int`에서는 `(x + 1)`이 오버플로우가 되어 참이 아닐 수 있으므로 보장되지 않습니다. 이렇게 signed 타입에서는 컴파일러가 이러한 검사를 제거하고 최적화할 수 잇습니다.
 
-As a more naturally occurring example, consider the case of a loop with an integer control variable. Modern C++ and languages like Rust encourage programmers to use an unsigned integer (`size_t` / `usize`), while C programmers stubbornly keep using `int`. To understand why, consider the following `for` loop:
+더 자연스럽게 발생하는 예로는 정수 제어 변수를 사용하는 루프가 있습니다. 현대 C++이나 Rust 같은 언어는 프로그래머가 `size_t`나 `uisze`같은 unsigned 정수를 루프 변수로 쓰도록 권장합니다. 반면 C에서는 여전히 `int`를 고수하는 경향이 있습니다. 왜 그런지 다음 루프를 예로 들어봅시다.
 
 ```cpp
 for (unsigned int i = 0; i < n; i++) {
@@ -29,13 +29,13 @@ for (unsigned int i = 0; i < n; i++) {
 }
 ```
 
-How many times does this loop execute? There are technically two valid answers: $n$ and infinity, the second being the case if $n$ exceeds $2^{32}$ so that $i$ keeps resetting to zero every $2^{32}$ iterations. While the former is probably the one assumed by the programmer, to comply with the language spec, the compiler still has to insert additional runtime checks and consider the two cases, which should be optimized differently. Meanwhile, the `int` version would make exactly $n$ iterations because the very possibility of a signed overflow is defined out of existence.
+이 루프는 몇 번 실행될까요? 이론적으로 두 가지 유효한 답이 있습니다. `n`번 또는 무한입니다. 후자는 `n`이 $2^{32}$를 초과할 경우 발생합니다. 이 경우 `i`는 오버플로우되어 0으로 되돌아가며 루프가 무한히 반복될 수 있습니다. 대부분의 프로그래머는 `n`번 반복되리라 예상하겠지만, 언어 사양을 준수하기 위해 컴파일러는 런타임 체크를 추가하거나 두 가지 경우를 다르게 최적화해야할 수 있습니다. 반면 `int`를 사용하는 버전은 정확히 `n`번 반복됩니다. 그 이유는 signed 오버플로우 자체가 정의되지 않은 동작으로 간주되므로, 컴파일러가 해당 가능성을 고려하지 않아도 되기 때문입니다.
 
-### Removing Corner Cases
+### 코너 케이스 제거하기
 
-The "safe" programming style usually involves making a lot of runtime checks, but they do not have to come at the cost of performance.
+안전한 프로그래밍 스타일은 일반적으로 많은 런타임 체크를 포함하지만, 반드시 성능 저하를 초래해야 하는 것은 아닙니다.
 
-For example, Rust famously uses bounds checking when indexing arrays and other random access structures. In C++ STL, `vector` and `array` have an "unsafe" `[]` operator and a "safe" `.at()` method that goes something like this:
+예를 들어, Rust는 배열이나 기타 임의 접근 구조체를 인덱싱할 때 경계 확인(bounds checking)을 수행하는 것으로 유명합니다. C++ STL에서는 `vector`와 `array`에 안전하지 않은 `[]` 연산자와 다음과 같이 작동하는 안전한 `.at()` 메서드가 있습니다.
 
 ```cpp
 T at(size_t k) {
@@ -45,13 +45,14 @@ T at(size_t k) {
 }
 ```
 
-Interestingly, these checks are rarely actually executed during runtime because the compiler can often prove — during compile time — that each access will be within bounds. For example, when iterating in a `for` loop from 1 to the array size and indexing $i$-th element on each step, nothing illegal can possibly happen, so the bounds checks can be safely optimized away.
+흥미롭게도, 이러한 검사들은 실제로 런타임에 실행되는 경우는 드뭅니다. 왜냐하면 컴파일러가 컴파일 시점에 각 접근이 경계 내에 있다는 것을 증명할 수 있는 경우가 많기 때문입니다. 예를 들어, 배열의 크기만큼 `for`문으로 순회하며 각 단계에서 `i`번째 원소에 접근하는 경우는 불법적인 접근이 일어날 가능성이 없으므로, 이러한 경계 검사를 안전하게 제거(최적화)할 수 있습니다.
 
-### Assumptions
+### 가정
 
-When the compiler can't prove the inexistence of corner cases, but *you* can, this additional information can be provided using the mechanism of undefined behavior.
+컴파일러가 코너 케이스의 부재를 증명하지 못하더라도, 프로그래머 본인은 그것을 확신할 수 있을 때, 해당 정보를 미정의 동작을 이용해 컴파일러에 알려줄 수 있습니다.
 
-Clang has a helpful `__builtin_assume` function where you can put a statement that is guaranteed to be true, and the compiler will use this assumption in optimization. In GCC, you can do the same with `__builtin_unreachable`:
+Clang에서는 `__builtin_assume`라는 유용한 함수를 제공하는데, 항상 참이 될 것이라고 보장되는 조건식을 넣으면, 컴파일러는 그 조건을 바탕으로 최적화를 수행합니다. GCC에서는 `__builtin_unreachable`을 이용해 수행할 수 있습니다.
+ 
 
 ```cpp
 void assume(bool pred) {
@@ -60,9 +61,9 @@ void assume(bool pred) {
 }
 ```
 
-For instance, you can put `assume(k < vector.size())` before `at` in the example above, and then the bounds check will be optimized away.
+예를 들어, 앞서 본 예제에서 `.at()` 호출 전에 `assume(k < vector.size())`를 넣으면, 경계 확인 코드는 최적화되어 제거될 수 있습니다.
 
-It is also quite useful to combine `assume` with `assert` and `static_assert` to find bugs: you can use the same function to check preconditions in the debug build and then use them to improve performance in the production build.
+또한 `assume`을 `assert` 또는 `static_assert`와 함께 사용하면 버그를 찾는데 유용합니다. 디버그 빌드에서는 이러한 전제 조건들을 확인하고, 릴리즈 빌드에서는 동일한 조건을 성능 최적화에 활용할 수 있기 때문입니다.
 
 <!--
 
@@ -79,11 +80,11 @@ void assume(bool pred) {
 
 -->
 
-### Arithmetic
+### 산술 연산
 
-Corner cases are something you should keep in mind, especially when optimizing arithmetic. 
+코너 케이스는 특히 산술 연산을 최적화할 때 반드시 유념해야 하는 요소입니다.
 
-For [floating-point arithmetic](/hpc/arithmetic/float), this is less of a concern because you can just disable strict standard compliance with the `-ffast-math` flag (which is also included in `-Ofast`). You almost have to do it anyway because otherwise, the compiler can't do anything but execute arithmetic operations in the same order as in the source code without any optimizations.
+[부동소수점 연산](/hpc/arithmetic/float)에서는, `-ffast-math` 플래그(혹은 `-Ofast` 플래그에 포함됨)를 사용하여 엄격한 표준 준수를 비활성화하면 이런 문제를 피할 수 있습니다. 실제로 이 플래그를 사용하지 않으면 컴파일러는 산술 연산을 소스 코드에 명시된 순서대로만 수행해야 하므로, 어떠한 최적화도 하지 못합니다. 
 
 <!--
 
@@ -91,7 +92,7 @@ because even algebraically correct rearrangements result in slightly different r
 
 -->
 
-For integer arithmetic, this is different because the results always have to be exact. Consider the case of division by 2:
+반면 정수 산술에서는 결과가 항상 정확해야 하기 때문에 상황이 다릅니다. 예를 들어, 정수를 2로 나누는 경우가 있습니다.
 
 ```cpp
 unsigned div_unsigned(unsigned x) {
@@ -99,13 +100,13 @@ unsigned div_unsigned(unsigned x) {
 }
 ```
 
-A widely known optimization is to replace it with a single right shift (`x >> 1`):
+널리 알려진 최적화 방식은 나눗셈을 오른쪽으로 한 비트 쉬프트하는 것입니다.
 
 ```nasm
 shr eax
 ```
 
-This is certainly correct for all *positive* numbers, but what about the general case?
+이 방식은 모든 양의 정수에 대해서는 올바릅니다. 그러나 일반적인(signed) 정수에 대해서는 문제가 있습니다.
 
 ```cpp
 int div_signed(int x) {
@@ -113,14 +114,15 @@ int div_signed(int x) {
 }
 ```
 
-If `x` is negative, then simply shifting doesn't work — regardless of whether shifting is done in zeros or sign bits:
+`x`가 음수인 경우, 단순히 쉬프트하는 것은 정확한 결과를 보장하지 않습니다. 0을 쉬프트하든, 부호 비트를 쉬프트하든 문제가 생깁니다.
 
-- If we shift in zeros, we get a non-negative result (the sign bit is zero).
-- If we shift in sign bits, then rounding will happen towards negative infinity instead of zero (`-5 / 2` will be equal to `-3` instead of `-2`)[^python].
+- 0을 쉬프트하면 부호 비트가 0이 되어 음수가 아닌 잘못된 결과가 나옵니다.
+- 부호 비트를 쉬프트하면 반올림이 0이 아니라 음의 무한대 방향으로 이루어집니다.(`-5 / 2`는 `-2`가 아니라 `-3`이 됩니다.)[^python].
 
-[^python]: Fun fact: in Python, integer-dividing a negative number for some reason floors the result, so that `-5 // 2 = -3` and equivalent to `-5 >> 1 = -3`. I doubt that Guido van Rossum had this optimization in mind when initially designing the language, but, theoretically, a [JIT-compiled](/hpc/complexity/languages/#compiled-languages) Python program with many divisions by two may be faster than an analogous C++ program.
 
-So, for the general case, we have to insert some crutches to make it work:
+[^python]: 흥미로운 사실은, Python에서는 여러 이유로 음수를 정수 나눗셈 할 경우 결과를 내림 처리합니다. 예를 들어 `-5 // 2 = -3`은 `-5 >> 1= -3`와 동일한 결과입니다. Guido van Rossum이 언어를 설계할 때 이러한 최적화를 염두에 뒀다고 보긴 어렵지만, 이론적으로는 2로 나누는 연산이 많은 Python 프로그램이 [JIT 컴파일](/hpc/complexity/languages/#compiled-languages)된 경우, 유사한 C++ 프로그램보다 더 빠를 수도 있습니다.
+
+따라서 이러한 경우에는 다음과 같은 보완 코드가 필요합니다.
 
 ```nasm
 mov  ebx, eax
@@ -129,7 +131,7 @@ add  eax, ebx   ; add 1 to the value if it is negative to ensure rounding toward
 sar  eax        ; this one shifts in sign bits
 ```
 
-When only the positive case is what was intended, we can also use the `assume` mechanism to eliminate the possibility of negative `x` and avoid handling this corner case:
+만약 양수만 다룰 것이라는 확신이 있다면, `assume` 매커니즘을 사용하여 음수 가능성을 제거하고 이 코너 케이스 자체를 회피할 수도 있습니다.
 
 ```cpp
 int div_assume(int x) {
@@ -138,15 +140,15 @@ int div_assume(int x) {
 }
 ```
 
-Although in this particular case, perhaps the best syntax to express that we only expect non-negative numbers is to use an unsigned integer type.
+그러나 이러한 경우에는 차라리 `unsigned` 정수형을 사용하는 것이 의도를 더 명확하게 전달할 수 있는 좋은 방법입니다.
 
-Because of nuances like this, it is often beneficial to expand the algebra in intermediate functions and manually simplify arithmetic yourself rather than relying on the compiler to do it.
+이처럼 미묘한 차이들 때문에, 때로는 중간 함수 단계에서 수식을 직접 전개하고, 컴파일러가 최적화를 알아서 해주기를 기다리기보다는 직접 산술 연산을 단순화하는 것이 더 유리할 수 있습니다.
 
-### Memory Aliasing
+### 메모리 앨리어싱
 
-Compilers are quite bad at optimizing operations that involve memory reads and writes. This is because they often don't have enough context for the optimization to be correct.
+컴파일러는 메모리 읽기/쓰기와 관련된 최적화에 약한 편입니다. 이는 정확한 최적화를 위해 필요한 정보(context)가 부족하기 때문입니다.
 
-Consider the following example:
+다음 예제를 봅시다.
 
 ```c++
 void add(int *a, int *b, int n) {
@@ -155,11 +157,11 @@ void add(int *a, int *b, int n) {
 }
 ```
 
-Since each iteration of this loop is independent, it can be executed in parallel and [vectorized](/hpc/simd). But is it, technically?
+이 루프의 각 반복은 서로 독립적이므로 병렬 실행되거나 [벡터화](/hpc/simd)될 수 있습니다. 그러나 기술적으로는 그렇지 않을 수도 있습니다.
 
-There may be a problem if the arrays `a` and `b` intersect. Consider the case when `b == a + 1`, that is, if `b` is just a memory view of `a` starting from its second element. In this case, the next iteration depends on the previous one, and the only correct solution is to execute the loop sequentially. The compiler has to check for such possibilities even if the programmer knows they can't happen.
+만약 `a`와 `b` 배열이 메모리 상에서 겹친다면(aliasing) 문제가 생깁니다. 예를 들어 `b == a + 1`일 경우, 즉 `b`가 `a`의 두 번째 요소부터 시작하는 뷰(view)인 경우, 루프의 다음 반복은 이전 반복의 결과에 의존하게 되므로, 루프를 순차적으로 실행해야만 합니다. 이처럼 프로그래머는 해당 경우가 절대 일어나지 않는다는 걸 알고 있더라도, 컴파일러는 그 가능성을 무시하지 못합니다.
 
-This is why we have `const` and `restrict` keywords. The first one enforces that we won't modify memory with the pointer variable, and the second is a way to tell the compiler that the memory is guaranteed to not be aliased.
+이러한 이유로 `const`와 `restrict` 키워드를 사용합니다. `const`는 해당 포인터를 통해 메모리를 수정하지 않겠다는 것을 보장하고, `restrict`는 해당 포인터가 가리키는 메모리가 다른 포인터와 겹치지 않음을 컴파일러에 알려주는 역할을 합니다.
 
 ```cpp
 void add(int * __restrict__ a, const int * __restrict__ b, int n) {
@@ -168,13 +170,13 @@ void add(int * __restrict__ a, const int * __restrict__ b, int n) {
 }
 ```
 
-These keywords are also a good idea to use by themselves for the purpose of self-documenting.
+이러한 키워드들은 코드 자체의 의미를 더 명확히 드러내는 자기 문서화(self-documenting) 측면에서도 유용합니다.
 
 ### C++ Contracts
 
-Contract programming is an underused but very powerful technique.
+계약 프로그래밍(Contract Programming)은 잘 알려지지 않았지만 매우 강력한 기법입니다.
 
-There is a late-stage proposal to add design-by-contract into the C++ standard in the form of [contract attributes](http://www.hellenico.gr/cpp/w/cpp/language/attributes/contract.html), which are functionally equivalent to our hand-made, compiler-specific `assume`:
+C++ 표준에는 [contract attributes](http://www.hellenico.gr/cpp/w/cpp/language/attributes/contract.html)라는 형태로 이러한 개념을 도입하려는 제안이 있으며, 우리가 구현하거나 컴파일러에 의존해 사용했던 `assume`과 기능적으로 동일합니다.
 
 ```c++
 T at(size_t k) [[ expects: k < n ]] {
@@ -182,9 +184,9 @@ T at(size_t k) [[ expects: k < n ]] {
 }
 ```
 
-There are 3 types of attributes — `expects`, `ensures`, and `assert` — respectively used for specifying pre- and post-conditions in functions and general assertions that can be put anywhere in the program.
+여기에는 세 가지 종류의 속성이 있습니다. 함수가 호출되기 전 만족해야 할 `expects`, 함수 실행 후 보장되어야 할 `ensures`, 프로그램의 어느 위치에서나 선언할 수 있는 `assert`가 있습니다.
 
-Unfortunately, this exciting new feature is [not yet finally standardized](https://www.reddit.com/r/cpp/comments/cmk7ek/what_happened_to_c20_contracts/), let alone implemented in a major C++ compiler. But maybe, in a few years, we will be able to write code like this:
+아쉽게도 이 흥미로운 기능은 아직 C++ 표준에 최종적으로 [채택되지 않았고](https://www.reddit.com/r/cpp/comments/cmk7ek/what_happened_to_c20_contracts/), 주요 C++ 컴파일러에서도 구현되어 있지 않습니다. 하지만 몇 년 안에 다음과 같은 방식으로 코드를 작성할 수 있을 날이 올지도 모릅니다.
 
 ```c++
 bool is_power_of_two(int m) {
@@ -202,6 +204,6 @@ int mod_power_of_two(int x, int m)
 }
 ```
 
-Some forms of contract programming are also available in other performance-oriented languages such as [Rust](https://docs.rs/contracts/latest/contracts/) and [D](https://dlang.org/spec/contracts.html).
+계약 프로그래밍의 일부 형태는 [Rust](https://docs.rs/contracts/latest/contracts/)나 [D](https://dlang.org/spec/contracts.html)같은 성능 중심 언어에서도 지원됩니다.
 
-A general and language-agnostic advice is to always [inspect the assembly](../stages) that the compiler produced, and if it is not what you were hoping for, try to think about corner cases that may be limiting the compiler from optimizing it.
+그리고 일반적인 조언으로는, 특정 코드가 원하는 성능을 내지 못할 때는 컴파일러가 생성한 어셈블리를 반드시 [살펴 보고](../stages), 컴파일러의 최적화를 방해할 수 있는 코너 케이스가 없는지 고민해보는 것도 좋습니다.
