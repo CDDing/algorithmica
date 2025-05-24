@@ -3,21 +3,23 @@ title: Benchmarking
 weight: 6
 ---
 
-Most good software engineering practices in one way or another address the issue of making *development cycles* faster: you want to compile your software faster (build systems), catch bugs as soon as possible (static analysis, continuous integration), release as soon as the new version is ready (continuous deployment), and react to user feedback without much delay (agile development).
+대부분의 훌륭한 소프트웨어 공학적 실천은 어떤 방식으로든 개발 주기를 단축하는 데 목적이 있습니다. 예를 들어, 소프트웨어를 더 빠르게 컴파일하고자 하기도 하고(빌드 시스템), 버그를 최대한 빨리 잡고자 하며(정적 분석, 지속적 통합), 새로운 버전이 준비되는 즉시 배포하려 하고(지속적 배포), 사용자 피드백에 지체없이 대응하려고 합니다(애자일 개발).
 
-Performance engineering is not different. If you do it correctly, it should also resemble a cycle:
+성능 엔지니어링도 예외는 아닙니다. 제대로 수행된다면, 성능 최적화 또한 다음 사이클을 따르게 됩니다.
 
-1. Run the program and collect metrics.
-2. Figure out where the bottleneck is.
-3. Remove the bottleneck and go to step 1.
+1. 프로그램을 실행하고 지표를 수집합니다.
+2. 병목이 어디인지 밝혀냅니다.
+3. 병목을 제거하고 1단계로 되돌아갑니다.
 
-In this section, we will talk about benchmarking and discuss some practical techniques that make this cycle shorter and help you iterate faster. Most of the advice comes from working on this book, so you can find many real examples of described setups in the [code repository](https://github.com/sslotin/ahm-code) for this book.
+이번 글에서는 벤치마킹에 대해 다루고, 이 사이클을 더 짧게 만들고 더 빠르게 반복할 수 있도록 도와주는 실용적인 기법들을 소개하겠습니다. 여기서 소개하는 대부분의 조언은 실제 이 책을 작성하면서 적용해 본 것들이며, 책의 [코드 저장소](https://github.com/sslotin/ahm-code)에서 그 예제들을 직접 확인하실 수 있습니다.
 
-### Benchmarking Inside C++
+### C++ 벤치마킹
 
-There are several approaches to writing benchmarking code. Perhaps the most popular one is to include several same-language implementations you want to compare in one file, separately invoke them from the `main` function, and calculate all the metrics you want in the same source file.
+벤치마킹 코드를 작성하는 데에는 여러 가지 접근 방식이 있습니다. 아마도 가장 널리 사용되는 방법은 비교하고자 하는 여러 동일 언어 구현을 하나의 파일에 포함하고, `main` 함수에서 각각을 호출하며, 동일한 소스 파일 내에서 원하는 지표들을 계산하는 것입니다.
 
 The disadvantage of this method is that you need to write a lot of boilerplate code and duplicate it for each implementation, but it can be partially neutralized with metaprogramming. For example, when you are benchmarking multiple [gcd](/hpc/algorithms/gcd) implementations, you can reduce benchmarking code considerably with this higher-order function:
+이 기법의 단점은 상당한 양의 반복 코드를 작성하고 구현마다 중복해서 작성해야 한다는 것이지만, 메타프로그래밍을 통해 부분적으로 중립화할 수 있습니다. 예를 들어, 여러 gcd 구현을 벤치마킹할 때, 이 더 높은순서 함수를 통해 상당한 양의 벤치마킹 코드를 줄일 수 있습니다.
+이 방법의 단점은 구현마다 상당량의 반복적인 코드를 작성해야 한다는 점입니다. 하지만 메타프로그래밍을 사용하면 이를 어느 정도 완화할 수 있습니다. 예를 들어, 여러 gcd 구현을 벤치마킹할 때 아래와 같은 고차 함수를 사용하면 벤치마킹 코드를 상당히 줄일 수 있습니다.
 
 ```c++
 const int N = 1e6, T = 1e9 / N;
@@ -51,15 +53,15 @@ int main() {
 }
 ```
 
-This is a very low-overhead method that lets you run more experiments and [get more accurate results](../noise) from them. You still have to perform some repeated actions, but they can be largely automated with frameworks, [Google benchmark library](https://github.com/google/benchmark) being the most popular choice for C++. Some programming languages also have handy built-in tools for benchmarking: special mention here goes to [Python's timeit function](https://docs.python.org/3/library/timeit.html) and [Julia's @benchmark macro](https://github.com/JuliaCI/BenchmarkTools.jl).
+이 방식은 오버헤드가 매우 낮아 더 많은 실험을 수행하고 [더 정확한 결과](../noise)를 얻는 데 유리합니다. 여전히 반복되는 작업이 존재하지만, 이런 작업들은 프레임워크를 통해 대부분 자동화할 수 있습니다. C++에서는 [Google의 Benchmark 라이브러리](https://github.com/google/benchmark)가 가장 널리 사용됩니다. 일부 프로그래밍 언어는 벤치마킹을 위한 유용한 내장 도구도 제공합니다. 그중 대표적으로는 [Python의 timeit 함수](https://docs.python.org/3/library/timeit.html)와 [Julia의 @benchmark 매크로](https://github.com/JuliaCI/BenchmarkTools.jl)가 있습니다.
 
-Although *efficient* in terms of execution speed, C and C++ are not the most *productive* languages, especially when it comes to analytics. When your algorithm depends on some parameters such as the input size, and you need to collect more than just one data point from each implementation, you really want to integrate your benchmarking code with the outside environment and analyze the results using something else.
+C와 C++은 실행 속도 측면에서는 효율적이지만, 분석 작업과 관련해서는 가장 생산적인 언어는 아닙니다. 알고리즘이 입력 크기 같은 매개변수에 따라 달라지고, 각 구현에서 하나 이상의 데이터를 수집해야 할 경우, 벤치마킹 코드를 외부 환경과 통합하고 결과를 다른 도구로 분석하고 싶어질 수 있습니다.
 
-### Splitting Up Implementations
+### 구현부 나누기
 
-One way to improve modularity and reusability is to separate all testing and analytics code from the actual implementation of the algorithm, and also make it so that different versions are implemented in separate files, but have the same interface.
+모듈성과 재사용성을 향상시키는 한 가지 방법은 알고리즘의 실제 구현과 테스트 및 분석 코드를 분리하는 것입니다. 또한 각 버전을 서로 다른 파일에 구현하되, 동일한 인터페이스를 제공하도록 구성하면 좋습니다.
 
-In C/C++, you can do this by creating a single header file (e.g., `gcd.hh`) with a function interface and all its benchmarking code in `main`:
+C와 C++에서는, 예를 들어 `gcd.hh`라는 단일 헤더 파일에 함수 인터페이스를 정의하고, `main` 함수 안에는 벤치마킹 코드를 작성함으로써 이를 실현할 수 있습니다.
 
 ```c++
 int gcd(int a, int b); // to be implemented
@@ -93,7 +95,7 @@ int main() {
 }
 ```
 
-Then you create many implementation files for each algorithm version (e.g., `v1.cc`, `v2.cc`, and so on, or some meaningful names if applicable) that all include that single header file:
+그 다음에는 각 알고리즘 버전마다 별도의 구현 파일(예: `v1.cc`, `v2.cc` 등)을 만들고, 앞서 작성한 헤더 파일을 포함하면 됩니다.
 
 ```c++
 #include "gcd.hh"
@@ -106,7 +108,7 @@ int gcd(int a, int b) {
 }
 ```
 
-The whole purpose of doing this is to be able to benchmark a specific algorithm version from the command line without touching any source code files. For this purpose, you may also want to expose any parameters that it may have — for example, by parsing them from the command line arguments:
+이렇게 하는 주된 목적은 소스 코드 파일을 직접 수정하지 않고도 명령줄에서 특정 버전의 알고리즘을 벤치마킹할 수 있게 하려는 것입니다. 이때 알고리즘이 사용하는 매개변수들을 외부에서 설정할 수 있도록 노출하는 것이 좋습니다. 예를 들어, 명령줄 인자를 파싱하는 방법이 있습니다.
 
 ```c++
 int main(int argc, char* argv[]) {
@@ -117,7 +119,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-Another way to do it is to use C-style global defines and then pass them with the `-D N=...` flag during compilation:
+또는 C 스타일의 전역 define을 사용하고, 컴파일 시 `-D N=...` 플래그를 넘기는 방법도 있습니다.
 
 ```c++
 #ifndef N
@@ -127,15 +129,15 @@ Another way to do it is to use C-style global defines and then pass them with th
 const int T = 1e9 / N;
 ```
 
-This way you can make use of compile-time constants, which may be very beneficial for the performance of some algorithms, at the expense of having to re-build the program each time you want to change the parameter, which considerably increases the time you need to collect metrics across a range of parameter values.
+이런 방식은 컴파일 타임 상수를 활용할 수 있게 해주며, 일부 알고리즘 성능을 높이는 데 큰 도움이 됩니다. 다만, 파라미터를 바꿀 때마다 프로그램을 다시 빌드해야 하므로, 다양한 파라미터 값에 대한 지표를 수집하는 데 시간이 더 걸릴 수 있다는 단점도 있습니다.
 
 ### Makefiles
 
 <!-- TODO -->
 
-Splitting up source files allows you to speed up compilation using a caching build system such as [Make](https://en.wikipedia.org/wiki/Make_(software)).
+소스 파일을 분리하면 [Make](https://en.wikipedia.org/wiki/Make_(software))와 같은 캐시 기반 빌드 시스템을 사용해 컴파일 속도를 높일 수 있습니다.
 
-I usually carry a version of this Makefile across my projects:
+저는 보통 이 Makefile의 변형을 여러 프로젝트에서 공통적으로 사용합니다.
 
 ```c++
 compile = g++ -std=c++17 -O3 -march=native -Wall
@@ -152,15 +154,15 @@ compile = g++ -std=c++17 -O3 -march=native -Wall
 .PHONY: %.run
 ```
 
-You can now compile `example.cc` with `make example`, and automatically run it with `make example.run`. 
+이제 `make example` 명령어로 `example.cc`를 컴파일할 수 있으며, `make example.run`으로 바로 실행할 수도 있습니다.
 
-You can also add scripts for calculating statistics in the Makefile, or incorporate it with `perf stat` calls to make profiling automatic.
+Makefile에 통계 계산용 스크립트를 추가하거나, `perf stat` 같은 도구를 연동하여 자동으로 프로파일링을 수행하도록 설정할 수도 있습니다.
 
 ### Jupyter Notebooks
 
-To speed up high-level analytics, you can create a Jupyter notebook where you put all your scripts and do all the plots.
+고수준 분석을 더 빠르게 진행하려면, Jupyter notebook을 만들어 모든 스크립트와 시각화를 그 안에 통합하는 것이 좋습니다.
 
-It is convenient to add a wrapper for benchmarking an implementation, which just returns a scalar result:
+구현의 벤치마킹을 위한 래퍼 함수를 추가해 두면 편리하며, 이는 단일 스칼라 값을 반환합니다.
 
 ```python
 def bench(source, n=2**20):
@@ -172,7 +174,7 @@ def bench(source, n=2**20):
     return duration
 ```
 
-Then you can use it to write clean analytics code:
+이제 이 함수를 사용해 깔끔한 분석 코드를 작성할 수 있습니다.
 
 ```python
 ns = list(int(1.17**k) for k in range(30, 60))
@@ -186,4 +188,4 @@ plt.plot(ns, [x / y for x, y in zip(baseline, results)])
 plt.show()
 ```
 
-Once established, this workflow makes you iterate much faster and focus on optimizing the algorithm itself.
+이런 워크플로우가 정착되면 훨씬 빠르게 반복할 수 있고, 알고리즘 자체의 최적화에 집중할 수 있게 됩니다.

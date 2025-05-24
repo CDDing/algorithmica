@@ -3,29 +3,29 @@ title: Statistical Profiling
 weight: 2
 ---
 
-[Instrumentation](../instrumentation) is a rather tedious way of doing profiling, especially if you are interested in multiple small sections of the program. And even if it can be partially automated by the tooling, it still won't help you gather some fine-grained statistics because of its inherent overhead.
+[Instrumentation](../instrumentation)은 프로파일링을 수행하는 데 다소 번거로운 방법이며, 특히 프로그램의 여러 작은 섹션에 관심이 있을 경우 더욱 그렇습니다. 도구를 이용해 일부 자동화할 수는 있지만, 고유의 오버헤드로 인해 고도로 세밀한 통계를 수집하는 데에는 여전히 한계가 있습니다.
 
-Another, less invasive approach to profiling is to interrupt the execution of a program at random intervals and look where the instruction pointer is. The number of times the pointer stopped in each function's block would be roughly proportional to the total time spent executing these functions. You can also get some other useful information this way, like finding out which functions are called by which functions by inspecting [the call stack](/hpc/architecture/functions).
+보다 덜 침습적인 프로파일링 방식은 실행 중 무작위 간격으로 인터럽트를 걸어 명령어 포인터가 어디를 가리키는 지 확인하는 것입니다. 명령어 포인터가 각 함수 블록에서 멈춘 횟수는 해당 함수가 실행에 소요한 전체 시간에 대략 비례합니다. 또한 [콜 스택](/hpc/architecture/functions)을 검사함으로써 어떤 함수가 어떤 함수에 의해 호출되었는지 등의 유용한 정보도 얻을 수 있습니다.
 
-This could, in principle, be done by just running a program with `gdb` and `ctrl+c`'ing it at random intervals but modern CPUs and operating systems provide special utilities for this type of profiling.
+이론적으로는 `gdb`로 프로그램을 실행한 후 무작위로 `ctrl+c`를 눌러 중단시키는 방식으로도 가능하지만, 현대의 CPU와 운영체제는 이러한 유형의 프로파일링을 위한 특수한 유틸리티를 제공합니다.
 
-### Hardware Events
+### 하드웨어 이벤트
 
-Hardware *performance counters* are special registers built into microprocessors that can store the counts of certain hardware-related activities. They are cheap to add on a microchip, as they are basically just binary counters with an activation wire connected to them.
+하드웨어 성능 카운터는 특정 하드웨어 관련 활동의 횟수를 저장할 수 있는 마이크로프로세서 내 특수 레지스터입니다. 이는 단순히 활성화 신호가 연결된 이진 카운터이기 때문에 마이크로칩에 추가하는 비용이 저렴합니다.
 
-Each performance counter is connected to a large subset of circuitry and can be configured to be incremented on a particular hardware event, such as a branch mispredict or a cache miss. You can reset a counter at the start of a program, run it, and output its stored value at the end, and it will be equal to the exact number of times a certain event has been triggered throughout the execution.
+각 성능 카운터는 회로의 큰 부분집합에 연결되어 있으며, 분기 예측 실패, 캐시 미스 등 특정 하드웨어 이벤트 발생 시 값을 증가하도록 구성할 수 있습니다. 프로그램 시작 시 카운터를 초기화하고, 실행 후 종료 시 그 값을 출력하면 해당 이벤트가 실행 중 몇 번 발생했는지를 정확히 알 수 있습니다.
 
-You can also keep track of multiple events by multiplexing between them, that is, stopping the program in even intervals and reconfiguring the counters. The result in this case will not be exact, but a statistical approximation. One nuance here is that its accuracy can’t be improved by simply increasing the sampling frequency because it would affect the performance too much and thus skew the distribution, so to collect multiple statistics, you would need to run the program for longer periods of time.
+여러 이벤트를 동시에 추적하려면 이벤트 간 다중화 기법을 사용할 수 있습니다. 이는 프로그램을 일정 간격으로 중단시키고 카운터 설정을 변경하는 방식입니다. 이 경우 결과는 정확하지 않고 통계적 근사치가 됩니다. 한 가지 주의할 점은 단순히 샘플링 빈도를 높인다고 해서 정확도가 증가하지는 않는다는 것입니다. 빈도 증가로 인한 성능 저하가 측정 분포를 왜곡하기 때문입니다. 따라서 다양한 통계를 수집하려면 프로그램을 더 오래 실행시켜야 합니다.
 
-Overall, event-driven statistical profiling is usually the most effective and easy way to diagnose performance issues.
+전반적으로, 이벤트 기반 통계 프로파일링은 성능 문제를 진단하는 데 가장 효과적이고 간단한 방법 중 하나입니다.
 
-### Profiling with perf
+### perf 프로파일링
 
-Performance analysis tools that rely on the event sampling techniques described above are called *statistical profilers*. There are many of them, but the one we will mainly use in this book is [perf](https://perf.wiki.kernel.org/), which is a statistical profiler shipped with the Linux kernel. On non-Linux systems, you can use [VTune](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html#gs.cuc0ks) from Intel, which provides roughly the same functionality for our purposes. It is available for free, although it is proprietary, and you need to refresh your community license every 90 days, while perf is free as in freedom.
+이러한 이벤트 샘플링 기법을 활용하는 성능 분석 도구를 통계 프로파일러(statistical profiler) 라고 합니다. 여러 도구가 있지만, 이 책에서는 주로 리눅스 커널에 포함된 통계 프로파일러인 [perf](https://perf.wiki.kernel.org/)를 사용할 것입니다. 비리눅스 시스템에서는 인텔의 [VTune](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/vtune-profiler.html#gs.cuc0ks)을 사용할 수 있습니다. Vtune은 우리의 목적에 맞는 기능을 거의 동일하게 제공하며, 무료이지만 독점 소프트웨어이며 90일마다 커뮤니티 라이선스를 갱신해야 합니다. 반면, perf는 자유 소프트웨어 입니다.
 
-Perf is a command-line application that generates reports based on the live execution of programs. It does not need the source and can profile a very wide range of applications, even those that involve multiple processes and interaction with the operating system.
+Perf는 프로그램의 실행 중 동작을 바탕으로 보고서를 생성하는 커맨드라인 애플리케이션입니다. 소스 코드 없이도 작동하며, 여러 프로세스나 운영체제와의 상호작용이 포함된 복잡한 애플리케이션도 프로파일링할 수 있습니다.
 
-For explanation purposes, I have written a small program that creates an array of a million random integers, sorts it, and then does a million binary searches on it:
+예시로는, 백만 개의 무작위 정수로 이루어진 배열을 생성하고 이를 정렬한 후, 백만 번의 이진 탐색을 수행하는 간단한 프로그램을 작성하였습니다.
 
 ```c++
 void setup() {
@@ -44,7 +44,7 @@ int query() {
 }
 ```
 
-After compiling it (`g++ -O3 -march=native example.cc -o run`), we can run it with `perf stat ./run`, which outputs the counts of basic performance events during its execution:
+`g++ -O3 -march=native example.cc -o run`으로 컴파일한 후, `perf stat ./run` 명령어로 실행하면 프로그램의 실행 중에 발생한 기본적인 성능 이벤트의 횟수를 출력할 수 있습니다.
 
 ```yaml
  Performance counter stats for './run':
@@ -66,9 +66,9 @@ After compiling it (`g++ -O3 -march=native example.cc -o run`), we can run it wi
    0.000000000 seconds sys
 ```
 
-You can see that the execution took 0.53 seconds or 852M cycles at an effective 1.32 GHz clock rate, over which 479M instructions were executed. There were also 122.7M branches, and 15.7% of them were mispredicted.
+위 결과에서, 프로그램은 약 0.65초 동안 실행되었고, 이 동안 약 8억 5천만 사이클이 소모되었으며 평균 1.32GHz의 클럭에서 실행되었습니다. 약 4억 8천만 개의 명령어가 실행되었고, 1억 2천 2백만 개 이상의 분기가 발생했으며, 그 중 약 15.7%는 분기 예측이 실패한 것으로 나타났습니다.
 
-You can get a list of all supported events with `perf list`, and then specify a list of specific events you want with the `-e` option. For example, for diagnosing binary search, we mostly care about cache misses:
+`perf list` 명령어를 통해 시스템에서 지원하는 모든 이벤트를 확인할 수 있으며, `-e` 옵션을 사용하여 특정 이벤트만 선택적으로 추적할 수도 있습니다. 예를 들어 이진 탐색을 분석할 때는 주로 캐시 미스를 살펴봅니다.
 
 ```yaml
 > perf stat -e cache-references,cache-misses ./run
@@ -77,11 +77,11 @@ You can get a list of all supported events with `perf list`, and then specify a 
 44,991,746      cache-misses:u      # 49.440 % of all cache refs
 ```
 
-By itself, `perf stat` simply sets up performance counters for the whole program. It can tell you the total number of branch mispredictions, but it won't tell you *where* they are happening, let alone *why* they are happening.
+`perf stat`은 전체 프로그램 실행에 대한 성능 카운터를 설정하고 총 이벤트 횟수를 알려주지만, 이벤트가 어디서 발생했는지는 알려주지 않습니다. 심지어 왜 발생했는지도 알 수 없습니다.
 
-To try the stop-the-world approach we discussed previously, we need to use `perf record <cmd>`, which records profiling data and dumps it as a `perf.data` file, and then call `perf report` to inspect it. I highly advise you to go and try it yourselves because the last command is interactive and colorful, but for those that can't do it right now, I'll try to describe it the best I can.
+앞서 언급한 세계 정지(stop the world) 방식의 접근을 시도하려면 `perf record <cmd>` 명령어를 사용하여 실행 중 성능 데이터를 `perf.data`파일로 기록한 후, `perf report`로 분석하면 됩니다. 마지막 명령어는 대화형 인터페이스와 컬러 출력을 제공하기 때문에 직접 실행해보는 것을 강력히 권장합니다. 직접 실행이 어려운 분들을 위해 아래에 최대한 설명해보겠습니다.
 
-When you call `perf report`, it first displays a `top`-like interactive report that tells you which functions are taking how much time:
+`perf report`를 실행하면 우선 `top` 명령과 유사한 인터페이스로 각 함수별 사용된 비중을 보여줍니다.
 
 ```
 Overhead  Command  Shared Object        Symbol
@@ -93,9 +93,9 @@ Overhead  Command  Shared Object        Symbol
    0.80%  run      libc-2.33.so         [.] rand
 ```
 
-Note that, for each function, just its *overhead* is listed and not the total running time (e.g., `setup` includes `std::__introsort_loop` but only its own overhead is accounted as 3.43%). There are tools for constructing [flame graphs](https://www.brendangregg.com/flamegraphs.html) out of perf reports to make them more clear. You also need to account for possible inlining, which is apparently what happened with `std::lower_bound` here. Perf also tracks shared libraries (like `libc`) and, in general, any other spawned processes: if you want, you can launch a web browser with perf and see what's happening inside.
+여기서 보여지는 것은 각 함수의 총 실행 시간이 아니라 오버헤드 비중입니다. 예를 들어, `setup`은 `std::__introsort_loop`를 호출하더라도 자신의 오버헤드인 3.43%만을 표시합니다. 더 직관적으로 분석하려면 [flame graphs](https://www.brendangregg.com/flamegraphs.html)를 생성할 수 있는 도구들도 있으며, 인라인 함수로 인한 영향도 고려해야 합니다.(`std::lower_bound`는 인라이닝된 것으로 보입니다.) `perf`는 `libc`같은 공유 라이브러리나 생성된 외부 프로세스까지도 추적하므로, 원한다면 웹 브라우저를 실행한 상태로 프로파일링해 내부 동작을 살펴볼 수도 있습니다.
 
-Next, you can "zoom in" on any of these functions, and, among others things, it will offer to show you its disassembly with an associated heatmap. For example, here is the assembly for `query`:
+각 함수에 대해 더 자세히 들어가면 어셈블리 코드와 함께 히트맵(heatmap)을 제공해줍니다. 예를 들어, `query` 함수의 어셈블리 분석은 다음과 같습니다.
 
 ```asm
        │20: → call   rand@plt
@@ -122,8 +122,8 @@ Next, you can "zoom in" on any of these functions, and, among others things, it 
        │    ↑ jne    20
 ```
 
-On the left column is the fraction of times that the instruction pointer stopped on a specific line. You can see that we spend ~65% of the time on the jump instruction because it has a comparison operator before it, indicating that the control flow waits there for this comparison to be decided.
+왼쪽 열은 각 명령어 줄에서 명령어 포인터가 멈춘 비율을 나타냅니다. 예를 들어, 전체 실행 시간 중 약 65%가 `jle b0` 명령어에서 소비되었는데, 이는 그 앞의 비교 명령어(`cmp`)가 제어 흐름을 지연시키고 있다는 것을 의미합니다.
 
-Because of intricacies such as [pipelining](/hpc/pipelining) and out-of-order execution, "now" is not a well-defined concept in modern CPUs, so the data is slightly inaccurate as the instruction pointer drifts a little bit forward. The instruction-level data is still useful, but at the individual cycle level, we need to switch to [something more precise](../simulation).
+단, [파이프라이닝](/hpc/pipelining)과 out-of-order 실행 등의 구조로 인해 현대 CPU에서는 "지금"이라는 개념이 명확하지 않기 때문에, 이 데이터는 약간의 오차가 있을 수 있습니다. 그럼에도 불구하고 명령어 수준에서의 분석은 여전히 매우 유용하며, 개별 사이클 수준의 정밀 분석이 필요하다면[더 정교한 시뮬레이션 기반 도구](../simulation)를 사용할 수도 있습니다.
 
 <!-- flame graphs -->

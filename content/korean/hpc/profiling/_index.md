@@ -4,20 +4,20 @@ aliases: [/hpc/analyzing-performance/profiling]
 weight: 5
 ---
 
-Staring at the source code or its assembly is a popular, but not the most effective way of finding performance issues. When the performance doesn't meet your expectations, you can identify the root cause much faster using one of the special program analysis tools collectively called *profilers*. 
+소스 코드나 어셈블리를 들여다보는 것은 흔히 쓰이는 방법이지만, 성능 문제를 찾는 가장 효과적인 방법은 아닙니다. 성능이 기대에 미치지 못할 때는, 프로파일러라 불리는 특수한 프로그램 분석 도구를 사용하면 원인을 훨씬 더 빠르게 파악할 수 있습니다.
 
-There are many different types of profilers. I like to think about them by analogy of how physicists and other natural scientists approach studying small things, picking the right tool depending on the required level of precision:
+프로파일러에는 매우 다양한 종류가 있습니다. 필자는 이들을 물리학자나 자연과학자들이 아주 작은 대상을 연구할 때처럼, 요구되는 정밀도 수준에 따라 적절한 도구를 고르는 방식에 비유하곤 합니다.
 
-- When objects are on a micrometer scale, they use optical microscopes.
-- When objects are on a nanometer scale, and light no longer interacts with them, they use electron microscopes.
-- When objects are smaller than that (e.g., the insides of an atom), they resort to theories and assumptions about how things work (and test these assumptions using intricate and indirect experiments).
+- 마이크로미터 크기의 물체는 광학 현미경을 사용합니다.
+- 나노미터 수준처럼 너무 작아 빛과 상호작용하지 않는 경우 전자현미경을 씁니다.
+- 원자 내부처럼 그보다 더 작은 경우에는 이론과 가정을 통해 작동 방식을 설명하고, 이를 정교하고 간접적인 실험을 통해 검증합니다.
 
-Similarly, there are three main profiling techniques, each operating by its own principles, having distinct areas of applicability, and allowing for different levels of precision:
+마찬가지로, 성능 분석에도 세 가지 주요 프로파일링 기법이 있으며, 각 기법은 고유한 원리로 작동하고 적용 범위와 정밀도가 다릅니다.
 
-- [Instrumentation](instrumentation) lets you time the program as a whole or by parts and count specific events you are interested in.
-- [Statistical profiling](events) lets you go down to the assembly level and track various *hardware events* such as branch mispredictions or cache misses, which are critical for performance.
-- [Program simulation](mca) lets you go down to the individual cycle level and look into what is happening inside the CPU on each cycle when it is executing a small assembly snippet.
+- [Instrumentation](instrumentation)은 프로그램 전체 또는 특정 부분의 실행 시간을 측정하고, 관심 있는 이벤트를 세는 데 사용할 수 있습니다.
+- [Statistical profiling](events)은 어셈블리 수준까지 내려가 분기 예측 실패나 캐시 미스같은 성능에 매우 중요한 다양한 하드웨어 이벤트를 추적할 수 있게 해줍니다.
+- [Program simulation](mca)은 개별 CPU 사이클 수준까지 분석하여, 작은 어셈블리 코드 조각이 실행될 때 각 사이클마다 내부에서 어떤 일이 벌어지는지를 살펴볼 수 있게 합니다.
 
-Practical algorithm design can be very much considered an empirical field too. We largely rely on the same experimental methods, although this is not because we don't know some of the fundamental secrets of nature but mostly because modern computers are just too complex to analyze — besides, this is also true that we, regular software engineers, can't know some of the details because of IP protection from hardware companies (in fact, considering that the most accurate x86 instruction tables are [reverse-engineered](https://arxiv.org/pdf/1810.04610.pdf), there is a reason to believe that Intel doesn't know these details themselves).
+실용적인 알고리즘 설계도 매우 경험적인 영역이라 볼 수 있습니다. 우리는 주로 실험적 방법에 의존하는데, 이는 자연의 근본 원리를 몰라서가 아니라, 현대 컴퓨터의 구조가 지나치게 복잡해서 분석이 어렵기 때문입니다. 게다가 우리 같은 일반적인 소프트웨어 엔지니어는 하드웨어 회사의 IP 보호 정책 때문에 어떤 사항은 아예 알 수조차 없습니다(실제로, 가장 정확한 x86 명령어 테이블이 [리버스 엔지니어링](https://arxiv.org/pdf/1810.04610.pdf)된 결과라는 점을 보면, 인텔조차 그 모든 세부 정보를 완전히 알고 있지는 않을 수도 있습니다).
 
-In this chapter, we will study these three key profiling methods, as well as some time-tested practices for managing computational experiments involving performance evaluation.
+이 장에서는 세 가지 주요 프로파일링 기법과 함께, 성능 측정을 포함한 계산 실험을 효과적으로 관리하기 위한 몇 가지 검증된 실용적인 방법들도 살펴볼 것입니다.
