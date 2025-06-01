@@ -3,53 +3,53 @@ title: Newton's Method
 weight: 3
 ---
 
-Reaching the maximum possible precision is rarely required from a practical algorithm. In real-world data, modeling and measurement errors are usually several orders of magnitude larger than the errors that come from rounding floating-point numbers and such, and we are often perfectly happy with picking an approximate method that trades off precision for speed.
+실용적인 알고리즘에서 가능한 최대 정밀도에 도달해야 하는 경우는 거의 없습니다. 실제 데이터에서는 모델링 오차나 측정 오차가 부동 소수점 반올림 등에서 발생하는 오차보다 훨씬 큰 경우가 대부분이기 때문입니다. 그래서 종종 정밀도를 조금 희생하더라도 속도를 얻을 수 있는 근사적인 방법을 택하는 것에 만족하기도 합니다.
 
-In this section, we introduce one of the most important building blocks in such approximate, numerical algorithms: *Newton's method*.
+여기서는 이러한 근사 수치 알고리즘에서 가장 중요한 구성 요소중 하나인 Newton 기법을 소개하겠습니다.
 
-## Newton's Method
+## Newton 기법
 
-Newton's method is a simple yet very powerful algorithm for finding approximate roots of real-valued functions, that is, the solutions to the following generic equation:
+Newton 기법은 실수값 함수의 근을 근사적으로 찾기 위한 매우 간단하지만 강력한 알고리즘입니다. 즉, 다음과 같은 일반적인 방정식의 해를 구하는 것이 목표입니다.
 
 $$
 f(x) = 0
 $$
 
-The only thing assumed about the function $f$ is that at least one root exists and that $f(x)$ is continuous and differentiable on the search interval. There are also some [boring corner cases](https://en.wikipedia.org/wiki/Newton%27s_method#Failure_analysis), but they almost never occur in practice, so we will just informally say that the function is "good."
+함수 $f$에 대해 가정하는 것은 단 두 가지 입니다. 적어도 하나의 해가 존재하며, 검색 구간 내에서 $f(x)$가 연속이고 미분 가능하다는 것입니다. 물론 몇 가지 [특수한 예외 상황](https://en.wikipedia.org/wiki/Newton%27s_method#Failure_analysis)도 존재하지만 실제에서는 거의 발생하지 않으므로, 우리는 그냥 이 함수가 좋다(good)고 표현하겠습니다.
 
-The main idea of the algorithm is to start with some initial approximation $x_0$ and then iteratively improve it by drawing the tangent to the graph of the function at $x = x_i$ and setting the next approximation $x_{i+1}$ equal to the $x$-coordinate of its intersection with the $x$-axis. The intuition is that if the function $f$ is "[good](https://en.wikipedia.org/wiki/Smoothness)" and $x_i$ is already close enough to the root, then $x_{i+1}$ will be even closer.
+이 알고리즘의 핵심 아이디어는 초기 근사값 $x_0$에서 시작하여 반복적으로 개선해 나가는 것입니다. 각 단계에서는 $x = x_i$에서의 함수 그래프에 접선을 그린 뒤, 그 접선이 $x$축과 만나는 지점의 $x$ 좌표를 다음 근사값 $x_{i+1}$로 설정합니다. 직관적으로, 함수 $f$가 "[좋은](https://en.wikipedia.org/wiki/Smoothness)" 함수이고, $x_i$가 이미 근에 충분히 가까운 값이라면, $x_{i+1}$은 그보다 더 가까워질 것입니다.
 
 ![](../img/newton.png)
 
-To obtain the point of intersection for $x_n$, we need to equal its tangent line function to zero:
+$x_n$에서의 접선이 $x$축과 교차하는 지점을 구하려면, 접선의 식을 0과 같게 만들어야 합니다.
 
 $$
 0 = f(x_i) + (x_{i+1} - x_i) f'(x_i)
 $$
 
-from which we derive
+이로부터 다음과 같은 공식을 얻을 수 있습니다.
 
 $$
 x_{i+1} = x_i - \frac{f(x_i)}{f'(x_i)}
 $$
 
-Newton's method is very important: it is the basis of a wide range of optimization solvers in science and engineering. 
+Newton 기법은 매우 중요한 기법으로, 과학 및 공학 분야에서 널리 사용되는 다양한 최적화 기법들의 기본이 되는 알고리즘입니다.
 
-### Square Root
+### 제곱근
 
-As a simple example, let's derive the algorithm for the problem of finding square roots:
+간단한 예제로, 제곱근을 찾는 문제에 대해 이 알고리즘이 어떻게 적용되는지 유도해 봅시다.
 
 $$
 x = \sqrt n \iff x^2 = n \iff f(x) = x^2 - n = 0
 $$
 
-If we substitute $f(x) = x^2 - n$ into the generic formula above, we can obtain the following update rule:
+위의 일반적인 공식에 $f(x) = x^2 - n$을 대입하면, 다음과 같은 규칙을 얻을 수 있습니다.
 
 $$
 x_{i+1} = x_i - \frac{x_i^2 - n}{2 x_i} = \frac{x_i + n / x_i}{2}
 $$
 
-In practice we also want to stop it as soon as it is close enough to the right answer, which we can simply check after each iteration:
+실제로는 정답에 충분히 가까워졌을 때 가능한 한 빨리 반복을 종료하고 싶습니다. 이는 각 반복 이후 오차를 간단히 검사함으로써 확인할 수 있습니다.
 
 ```cpp
 const double EPS = 1e-9;
@@ -62,11 +62,11 @@ double sqrt(double n) {
 }
 ```
 
-The algorithm converges for many functions, although it does so reliably and provably only for a certain subset of them (e.g., convex functions). Another question is how fast the convergence is, if it occurs.
+이 알고리즘은 많은 함수에서 수렴하지만, 항상 보장되고 증명가능한 것은 아니며, 일반적으로는 특정 조건을 만족하는 함수들에서만 확실하게 작동합니다. 또 다른 중요한 문제는, 수렴이 일어난다면 얼마나 빠르게 수렴하는지입니다.
 
-### Rate of Convergence
+### 수렴 비율
 
-Let's run a few iterations of Newton's method to find the square root of $2$, starting with $x_0 = 1$, and check how many digits it got correct after each iteration:
+$2$의 제곱근을 구하기 위해 Newton 기법을 몇 차례 반복해 봅시다. 초기값 $x_0=1$에서 시작해서, 각 반복마다 얼마나 많은 자릿수가 정확해지는지 확인해보겠습니다.
 
 <pre class='center-pre'>
 <b>1</b>.0000000000000000000000000000000000000000000000000000000000000
@@ -79,39 +79,38 @@ Let's run a few iterations of Newton's method to find the square root of $2$, st
 <b>1.4142135623730950488016887242096980785696718753769480731766796</b>
 </pre>
 
-Looking carefully, we can see that the number of accurate digits approximately doubles on each iteration. This fantastic convergence rate is not a coincidence.
+자세히 살펴보면, 반복할 때마다 정확한 자릿수가 거의 두 배로 증가함을 알 수 있습니다. 이 놀라운 수렴 속도는 단순한 우연이 아닙니다.
 
-To analyze convergence rate quantitatively, we need to consider a small relative error $\delta_i$ on the $i$-th iteration and determine how much smaller the error $\delta_{i+1}$ is on the next iteration:
+이 수렴 속도를 정량적으로 분석하기 위해, $i$번째 반복에서의 작은 상대 오차 $\delta_i$를 정의하고, 다음 반복에서의 오차 $\delta_{i+1}$이 얼마나 작아지는지를 살펴봅시다.
 
 $$
 |\delta_i| = \frac{|x_n - x|}{x}
 $$
 
-We can express $x_i$ as $x \cdot (1 + \delta_i)$. Plugging it into the Newton iteration formula and dividing both sides by $x$ we get
+$x_i$를 $x \cdot (1 + \delta_i)$로 표현할 수 있습니다. 이를 Newton 반복 식에 대입하고 양변을 $x$로 나누면 다음과 같은 식을 얻을 수 있습니다.
 
 $$
 1 + \delta_{i+1} = \frac{1}{2} (1 + \delta_i + \frac{1}{1 + \delta_i}) = \frac{1}{2} (1 + \delta_i + 1 - \delta_i + \delta_i^2 + o(\delta_i^2)) = 1 + \frac{\delta_i^2}{2} + o(\delta_i^2)
 $$
 
-Here we have Taylor-expanded $(1 + \delta_i)^{-1}$ at $0$, using the assumption that the error $d_i$ is small (since the sequence converges, $d_i \ll 1$ for sufficiently large $n$).
+여기서는 $(1 + \delta_i)^{-1}$을 $0$ 근처에서 테일러 전개 했고, $d_i$가 매우 작다는 가정을 사용했습니다.(수열이 수렴하므로 충분히 큰 $i$에 대해 $d_i \ll 1$이 보장됩니다.)
 
-Rearranging for $\delta_{i+1}$, we obtain
+$\delta_{i+1}$에 대해 정리하면 다음과 같은 식을 얻습니다.
 
 $$
 \delta_{i+1} = \frac{\delta_i^2}{2} + o(\delta_i^2)
 $$
 
-which means that the error roughly squares (and halves) on each iteration once we are close to the solution. Since the logarithm $(- \log_{10} \delta_i)$ is roughly the number of accurate significant digits in the answer $x_i$, squaring the relative error corresponds precisely to doubling the number of significant
-digits that we had observed.
+이는 해에 충분히 가까워졌을 때 반복할수록 오차가 대략 제곱되고 절반이 된다는 의미입니다. 로그 값 $(- \log_{10} \delta_i)$는 대략적으로 ${x_i}$의 유효 숫자 자릿수이므로, 상대 오차가 제곱된다는 것은 정확한 자릿수가 두 배로 늘어남을 의미합니다.
 
-This is known as *quadratic convergence*, and in fact, this is not limited to finding square roots. With detailed proof being left as an exercise to the reader, it can be shown that, in general
+이러한 현상은 이차 수렴이라고 불리며, 사실 제곱근을 구할 때에만 나타나는 특성은 아닙니다. 세부적인증명은 독자에게 남기지만, 일반적으로 다음과 같은 식이 성립함을 보일 수 있습니다.
 
 $$
 |\delta_{i+1}| = \frac{|f''(x_i)|}{2 \cdot |f'(x_n)|} \cdot \delta_i^2
 $$
 
-which results in at least quadratic convergence under a few additional assumptions, namely $f'(x)$ not being equal to $0$ and $f''(x)$ being continuous.
+이는 몇 가지 조건이 추가로 만족될 때 적어도 이차 수렴을 보장합니다. 그 조건은 $f'(x)$가 $0$이 아니고 $f''(x)$가 연속이라는 것입니다.
 
-## Further Reading
+## 읽을거리
 
 [Introduction to numerical methods at MIT](https://ocw.mit.edu/courses/mathematics/18-330-introduction-to-numerical-analysis-spring-2012/lecture-notes/MIT18_330S12_Chapter4.pdf).

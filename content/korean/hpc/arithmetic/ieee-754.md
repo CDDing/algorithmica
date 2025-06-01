@@ -3,31 +3,31 @@ title: IEEE 754 Floats
 weight: 2
 ---
 
-When we designed our [DIY floating-point type](../float), we omitted quite a lot of important little details:
+우리의 [고유한 부동 소수점 타입](../float)을 설계할 때, 몇 가지 중요한 세부 사항을 생략했습니다.
 
-- How many bits do we dedicate for the mantissa and the exponent?
-- Does a `0` sign bit mean `+`, or is it the other way around?
-- How are these bits stored in memory?
-- How do we represent 0?
-- How exactly does rounding happen?
-- What happens if we divide by zero?
-- What happens if we take the square root of a negative number?
-- What happens if we increment the largest representable number?
-- Can we somehow detect if one of the above three happened?
+- 지수부와 가수부에 몇 비트를 사용할 것인지
+- `0` 비트가 양수를 의미할지, 혹은 반대일지
+- 이러한 비트들을 메모리에 어떤 순서로 저장하는지
+- 어떻게 0을 표현할지
+- 반올림할 때 정확히 어떤 방식으로 이루어지는지
+- 0으로 나눌 때 무엇이 일어나는지
+- 음수에 제곱근을 취할 경우 무엇이 일어나는지
+- 표현가능한 가장 큰 수에 1을 더하면 무엇이 일어나는지
+- 위의 세 가지 명령이 일어난다면 감지할 수 있는지
 
-Most of the early computers didn't support floating-point arithmetic, and when vendors started adding floating-point coprocessors, they had slightly different visions for what the answers to these questions should be. Diverse implementations made it difficult to use floating-point arithmetic reliably and portably — especially for the people who develop compilers.
+초기 컴퓨터 대부분은 부동 소수점 연산을 지원하지 않았고, 제조사들이 부동 소수점 보조 프로세서를 도입하기 시작했을 때도 위의 질문들에 대한 해답은 서로 달랐습니다. 다양한 구현 방식은 부동 소수점 연산을 신뢰성 있고 이식 가능하게 사용하기 어렵게 만들었고, 특히 컴파일러를 개발하는 사람들에게는 큰 골칫거리였습니다.
 
-In 1985, the Institute of Electrical and Electronics Engineers published a standard (called [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)) that provided a formal specification of how floating-point numbers should work, which was quickly adopted by the vendors and is now used in virtually all general-purpose computers.
+1985년에는 전기전자기술자협회(IEEE)가 [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)라 불리는 표준을 발표했으며, 부동 소수점 숫자가 어떻게 동작해야 하는지에 대한 명확한 사양을 제시했습니다. 이 표준은 빠르게 채택되어 현재는 거의 모든 범용 컴퓨터에서 사용되고 있습니다.
 
-## Float Formats
+## Float 포맷
 
-Similar to our handmade float implementation, hardware floats use one bit for sign and a variable number of bits for the exponent and the mantissa parts. For example, the standard 32-bit `float` encoding uses the first (highest) bit for sign, the next 8 bits for the exponent, and the 23 remaining bits for the mantissa. 
+우리가 만든 수제 float와 유사하게, 하드웨어 기반 float도 1비트의 부호 비트와 여러 비트의 지수부 및 가수부로 구성됩니다. 예를 들어, 표준 32비트 `float` 인코딩에서는 첫 번째 비트가 부호, 다음 8비트가 지수, 그리고 남은 23비트가 가수에 사용됩니다.
 
 ![](../img/float.svg)
 
-One of the reasons why they are stored in this exact order is that it is easier to compare and sort them: you can use mostly the same comparator circuit as for [unsigned integers](../integer), except for maybe flipping some bits in case one of the numbers is negative.
+이런 순서로 비트를 저장하는 이유 중 하나는, 비교 및 정렬 연산을 더 쉽게 하기 위함입니다. 대부분의 경우 부호가 음수일 때 몇 비트를 반전시키는 것을 제외하면 [부호 없는 정수](../integer)와 거의 같은 방식으로 비교 회로를 사용할 수 있습니다.
 
-For the same reason, the exponent is *biased:* the actual value is 127 less than the stored unsigned integer, which lets us also cover the values less than one (with negative exponents). In the example above:
+이와 같은 이유로 지수부에는 편향이 있습니다. 저장되는 실제 지수값보다 127만큼 더 큰 unsigned 정수로 표현되며, 이를 통해 1보다 작은 값(음수 지수)을 표현할 수 있게 됩니다. 예를 들어 위의 예제 다음과 같이 해석됩니다.
 
 $$
 (-1)^0 \times 2^{01111100_2 - 127} \times (1 + 2^{-2})
@@ -36,7 +36,7 @@ $$
 = 0.15625
 $$
 
-IEEE 754 and a few consequent standards define not one but *several* representations that differ in sizes, most notably:
+IEEE 754 및 그에 따른 몇몇 표준은 하나의 형식이 아닌 다양한 크기의 표현 방식을 정의하고 있으며, 대표적인 예는 다음과 같습니다.
 
 |      Type | Sign | Exponent | Mantissa | Total bits | Approx. decimal digits |
 |----------:|------|----------|----------|------------|------------------------|
@@ -47,39 +47,39 @@ IEEE 754 and a few consequent standards define not one but *several* representat
 | quadruple | 1    | 15       | 112      | 128        | ~34.0                  |
 |  bfloat16 | 1    | 8        | 7        | 16         | ~2.3                   |
 
-Their availability ranges from chip to chip:
+이러한 타입의 지원 여부는 CPU 또는 칩에 따라 다릅니다.
 
-- Most CPUs support single- and double-precision — which is what `float` and `double` types refer to in C.
-- Extended formats are exclusive to x86, and are available in C as the `long double` type, which falls back to double precision on Arm CPUs. The choice of 64 bits for mantissa is so that every `long long` integer can be represented exactly. There is also a 40-bit format that similarly allocates 32 mantissa bits.
-- Quadruple as well as the 256-bit "octuple" formats are only used for specific scientific computations and are not supported by general-purpose hardware.
-- Half-precision arithmetic only supports a small subset of operations and is generally used for applications such as machine learning, especially neural networks, because they tend to perform large amounts of calculations but don't require high levels of precision.
-- Half-precision is being gradually replaced by bfloat, which trades off 3 mantissa bits to have the same range as single-precision, enabling interoperability with it. It is mostly being adopted by specialized hardware: TPUs, FGPAs, and GPUs. The name stands for "[Brain](https://en.wikipedia.org/wiki/Google_Brain) float."
+- 대부분의 CPU는 single 및 double 정밀도를 지원하며, 이는 C 언어에서 각각 `float`와 `doubvle`로 사용됩니다.
+- 확장 포맷은 x86 아키텍처에 독점적으로 존재하며, C에서는 `long double` 타입으로 제공됩니다. 다만 Arm CPU에서는 이 타입도 일반적인 double 정밀도로 동작합니다. 가수부가 64비트인 이유는 `long long` 정수 타입을 정확히 표현할 수 있도록 하기 위함입니다. 비슷하게 가수부가 32비트인 40비트 포맷도 존재합니다.
+- Quadruple 및 256비트 "octuple" 포맷은 특정한 과학 계산에서만 사용되며, 범용 하드웨어에서는 지원되지 않습니다.
+- Half 정밀도 부동 소수점은 연산 지원 범위가 제한되어 있으며, 주로 머신 러닝과 같은 정밀도 보다는 연산량이 중요한 분야에서 사용됩니다.
+- Half 정밀도는 점차 bfloat로 대체되고 있으며, 이는 가수 비트를 3비트 줄이는 대신 single과 동일한 지수 범위를 제공하여 서로 호환이 가능하게 됩니다. 주로 TPU, FPGA, GPU 등 특수 하드웨어에서 채택되고 있으며, 이름은 [Brain](https://en.wikipedia.org/wiki/Google_Brain) float에서 유래했습니다.
 
-Lower-precision types need less memory bandwidth to move them around and usually take fewer cycles to operate on (e.g., the division instruction may take $x$, $y$, or $z$ cycles depending on the type), which is why they are preferred when error tolerance allows it.
+낮은 정밀도 타입은 메모리 대역폭 요구가 낮고, 연산에 필요한 CPU 사이클도 적어 오류 허용 범위가 클 경우 선호됩니다.
 
-Deep learning, emerging as a very popular and computationally-intensive field, created a huge demand for low-precision matrix multiplication, which led to manufacturers developing separate hardware or at least adding specialized instructions that support these types of computations — most notably, Google developing a custom chip called TPU (*tensor processing unit*) that specializes on multiplying 128-by-128 bfloat matrices, and NVIDIA adding "tensor cores," capable of performing 4-by-4 matrix multiplication in one go, to all their newer GPUs.
+딥러닝은 높은 계산량이 요구되는 매우 인기 있는 분야로 떠오르며, 낮은 정밀도의 행렬 곱셈에 대한 수요를 폭발적으로 증가시켰습니다. 이에 따라 제조사들은 이러한 연산을 지원하기 위해 별도의 하드웨어를 개발하거나 특수 명령어를 도입하게 되었는데, 예를 들어 구글은 128 * 128 크기의 bfloat 행렬 곱에 특화된 커스텀 칩 TPU(Tensor Processing Unit)를 개발하였고, NVIDIA는 새로운 CPU 전 제품에 4 * 4 행렬 곱을 단일 연산으로 수행할 수 있는 텐서 코어를 추가하였습니다.
 
-Apart from their sizes, most of the behavior is the same between all floating-point types, which we will now clarify.
+크기만 다를 뿐, 대부분의 부동 소수점 타입은 동작 방식이 동일합니다. 이제 그 공통된 동작 방식들을 살펴보겠습니다.
 
-## Handling Corner Cases
+## 코너 케이스 다루기
 
-The default way integer arithmetic deals with corner cases such as division by zero is to crash.
+기본적인 정수 산술 연산은 0으로 나누는 것과 같은 코너 케이스에서 프로그램을 크래시시킵니다.
 
-Sometimes a software crash, in turn, causes a real, physical one. In 1996, the maiden flight of the [Ariane 5](https://en.wikipedia.org/wiki/Ariane_5) (the space launch vehicle that ESA uses to lift stuff into low Earth orbit) ended in [a catastrophic explosion](https://www.youtube.com/watch?v=gp_D8r-2hwk) due to the policy of aborting computation on arithmetic error, which in this case was a floating-point to integer conversion overflow, that led to the navigation system thinking that it was off course and making a large correction, eventually causing the disintegration of a $200M rocket.
+때때로 소프트웨어의 크래시는 실제 물리적인 사고로 이어지기도 합니다. 1996년, 유럽우주국(ESA)의 저궤도 발사체인 [Ariane 5](https://en.wikipedia.org/wiki/Ariane_5)의 첫 비행은 [재앙적인 폭발](https://www.youtube.com/watch?v=gp_D8r-2hwk)로 끝났습니다. 이는 산술 오류 발생 시 연산을 중단하는 정책때문이었습니다. 이 경우, 부동 소수점을 정수로 변환하는 과정에서 오버플로우가 발생했고, 내비게이션 시스템은 로켓이 궤도를 이탈했다고 오판하여 과도한 보정을 시도했고, 결국 2억 달러 짜리 로켓이 공중분해 되었습니다.
 
-There is a way to gracefully handle corner cases like these: hardware interrupts. When an exception occurs, the CPU
+이러한 코너 케이스를 보다 우아하게 처리하는 방법이 있습니다. 바로 하드웨어 인터럽트입니다. 예외가 발생하면, CPU는 다음과 같이 동작합니다.
 
-- interrupts the execution of a program;
-- packs all relevant information into a data structure called "interrupt vector";
-- passes it to the operating system, which in turn either calls the handling code if it exists (the "try-except" block) or terminates the program otherwise.
+- 프로그램의 실행을 중단시킵니다.
+- 관련된 모든 정보를 인터럽트 벡터라는 자료구조에 담습니다.
+- 이를 운영체제에 전달하고, 운영체제는 예외 처리를 위한코드가 있다면 그것을 호출하거나, 그렇지 않으면 프로그램을 종료합니다.
 
-This is a complex mechanism that deserves an article of its own, but since this is a book about performance, the only thing you need to know is that they are quite slow and not desirable in real-time systems such as navigating rockets.
+이것은 자체로도 한 편의 글이 필요한 복잡한 매커니즘이지만, 이 책은 성능에 관한 것이므로 여기서 알아야 할것은 이 매커니즘이 매우 느리며 로켓 내비게이션과 같은 실시간 시스템에서는 바람직하지 않다는 점입니다.
 
-### NaNs, Zeros and Infinities
+### NaN, 0, 그리고 무한
 
-Floating-point arithmetic often deals with noisy, real-world data. Exceptions there are much more common than in the integer case, and for this reason, the default behavior when handling them is different. Instead of crashing, the result is substituted with a special value without interrupting the program execution (unless the programmer explicitly wants it to).
+부동 소수점 연산은 종종 오차가 많은 데이터를 다룹니다. 따라서 예외가 정수 연산보다 훨씬 더 자주 발생하며, 이 때문에 예외를 처리하는 기본 동작도 다릅니다. 명시적으로 다르게 설정하지 않는 한 프로그램을 크래시시키는 대신, 결과를 특수한 값으로 대체하고 프로그램을 계속 실행하는 것입니다.
 
-The first type of such value is the two infinities: a positive and a negative one. They are generated if the result of an operation can't fit within the representable range, and they are treated as such in arithmetic.
+이러한 특수 값중 하나는 두 무한값입니다. 양의 무한과 음의 무한은 연산 결과가 표현 가능한 범위를 넘을 때 생성되며, 이후 산술 연산에서 무한으로 간주되어 처리됩니다.
 
 $$
 \begin{aligned}
@@ -89,27 +89,29 @@ $$
 \end{aligned}
 $$
 
-What happens if we, say, divide a value by zero? Should it be a negative or a positive infinity? This case is actually unambiguous because, somewhat less intuitively, there are also two zeros: a positive and a negative one.
+그렇다면 어떤 값을 0으로 나누면 어떻게 될까요? 양의 무한일까요, 음의 무한일까요? 이 경우는 의외로 명확합니다. 다소 직관적이지는 않지만, 0에도 양수, 음수가 존재하기 때문입니다.
 
 $$
           \frac{1}{+0} = +∞
 \;\;\;\;  \frac{1}{-0} = -∞
 $$
 
-Fun fact: `x + 0.0` can't be folded to `x`, but `x + (-0.0)` can, so the negative zero is a better initializer value than the positive zero as it is more likely to be optimized away by the compiler. The reason why `+0.0` doesn't work is that IEEE says that `+0.0 + -0.0 == +0.0`, so it will give a wrong answer for `x = -0.0`. The presence of two zeros frequently causes headaches like this — good news that you can pass `-fno-signed-zeros` to the compiler if you want to disable this behavior.
+재미있는 사실은 `x + 0.0`은 컴파일러 최적화에서 x로 단순화되지 않지만, `x + (-0.0)`은 가능합니다. 그래서 컴파일러가 불필요한 코드를 제거하는 데 있어 음수 0이 양수 0보다 더 좋은 초기값이 됩니다. `+0.0`이 최적화되지 않는 이유는 IEEE 표준에서 `+0.0 + -0.0 == +0.0`이기 때문입니다. 만약 `x = -0.0`이라면 잘못된 결과를 반환하게 되죠. 이러한 두 개의 0은 종종 이런 식으로 골칫거리가 되며, 다행히도 컴파일러에 `-fno-signed-zeros` 플래그를 넘기면 이 동작을 비활성화할 수 있습니다.
 
-Zeros are encoded by setting all bits to zero, except for the sign bit in the negative case. Infinities are encoded by setting all their exponent bits to one and all mantissa bits to zero, with the sign bit distinguishing between positive and negative infinity.
+0은 모든 비트를 0으로 설정해 표현합니다. 단, 음수 0의 경우 부호 비트만 1입니다. 무한은 지수부의 모든 비트를 1로, 가수부를 모두 0으로 설정하여 표현하며, 부호 비트로 음의 무한과 양의 무한을 구분합니다.
 
-The other type is the "not-a-number” (NaN), which is generated as the result of mathematically incorrect operations:
+다른 특수값은 NaN(Not a Number)으로, 이는 수학적으로 정의되지 않은 연산의 결과로 생성됩니다.
 
 $$
 \log(-1),\; \arccos(1.01),\; ∞ − ∞,\; −∞ + ∞,\; 0 × ∞,\; 0 ÷ 0,\; ∞ ÷ ∞
 $$
 
-There are two types of NaNs: a *signaling NaN* and a *quiet NaN*. A signaling NaN raises an exception flag, which may or may not cause immediate hardware interrupt depending on the FPU configuration, while a quiet NaN just propagates through almost every arithmetic operation, resulting in more NaNs.
+NaN에는 두 가지 종류가 있습니다. signaling NaN과 quiet NaN입니다. signaling NaN은 예외 플래그를 발생시키며, FPU 설정에 따라 즉시 하드웨어 인터럽트를 일으킬 수도 있고 그렇지 않을 수도 있습니다. 반면 quiet NaN은 거의 모든 연산을 거쳐 전파되며 더 많은 NaN을 만들어냅니다.
 
-In binary, both NaNs have their exponent bits all set and the mantissa part being anything other than all zeros (to distinguish them from infinities). Note that there are *very* many valid encodings for a NaN.
+이진 표현에서 NaN은 지수부 비트가 모두 1이고, 가수부는 무한과 구별하기 위해 0이 아닌 어떤 값으로 설정됩니다. NaN은 매우 많은 표현 가능한 이진 인코딩을 가질 수 있다는 점을 기억하세요.
 
-## Further Reading
 
-If you are so inclined, you can read the classic "[What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://www.itu.dk/~sestoft/bachelor/IEEE754_article.pdf)" (1991) and [the paper introducing Grisu3](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf), the current state-of-the-art for printing floating-point numbers.
+
+## 읽을거리
+
+흥미가 생겼다면, 고전적인 논문인 "[What Every Computer Scientist Should Know About Floating-Point Arithmetic](https://www.itu.dk/~sestoft/bachelor/IEEE754_article.pdf)" (1991)과, 부동 소수점 숫자 출력의 최신 기법인 [Grisu3](https://www.cs.tufts.edu/~nr/cs257/archive/florian-loitsch/printf.pdf)를 소개하는 논문을 읽어보는 것도 좋습니다.

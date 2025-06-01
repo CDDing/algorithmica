@@ -3,13 +3,13 @@ title: Integer Numbers
 weight: 5
 ---
 
-If you are reading this chapter sequentially from the beginning, you might be wondering: why would I introduce integer arithmetic after floating-point one? Isn't it supposed to be easier?
+시작부터 지금까지 글을 순서대로 읽어왔다면 이런 의문이 들 수도 있습니다. "왜 정수 연산을 부동 소수점 연산보다 나중에 설명할까? 정수가 더 쉬운 거 아닌가?"
 
-True: plain integer representations are simpler. But, counterintuitively, their simplicity allows for more possibilities for operations to be expressed in terms of others. And if floating-point representations are so unwieldy that most of their operations are implemented in hardware, efficiently manipulating integers requires much more creative use of the instruction set.
+물론, 순수한 정수 표현 방식은 더 단순합니다. 하지만 아이러니하게도, 이 단순함 덕분에 다양한 연산을 서로 다른 방식으로 표현할 수 있는 여지가 더 많아집니다. 그리고 부동 소수점은 그 표현 자체가 워낙 복잡해서 대부분의 연산이 하드웨어 수준에서 구현되어 있는 반면, 정수를 효율적으로 다루려면 주어진 명령어 집합을 훨씬 더 창의적으로 활용해야 합니다.
 
-## Binary Formats
+## 이진 포맷
 
-*Unsigned integers* are just natural numbers written in binary:
+부호 없는(unsigned) 정수는 자연수를 이진수로 표현한 것입니다.
 
 $$
 \begin{aligned}
@@ -19,9 +19,9 @@ $$
 \end{aligned}
 $$
 
-When the result of an operation can't fit into the word size (e.g., is more or equal to $2^{32}$ for 32-bit unsigned integers), it *overflows* by leaving only the lowest 32 bits of the result. Similarly, if the result is a negative value, it *underflows* by adding it to $2^{32}$, so that it always stays in the $[0, 2^{32})$ range.
+연산 결과가 워드 크기를 초과할 경우, 예를 들어 32비트 부호 없는 정수에서 결과가 $2^{32}$ 이상인 경우, 오버플로우가 발생하여 결과값의 하위 32비트만 남게 됩니다. 마찬가지로, 결과가 음수라면 $2^{32}$를 더해서 언더플로우를 처리하게 되며, 결과는 항상 $[0, 2^{32})$ 범위 내로 유지됩니다.
 
-This is equivalent to performing all operations modulo a power of two:
+이것은 모든 연산의 2의 거듭제곱을 나머지 하는 연산과 같다고 볼 수 있습니다.
 
 $$
 \begin{aligned}
@@ -31,18 +31,18 @@ $$
 \end{aligned}
 $$
 
-In either case, it raises a special flag which you can check, but usually when people explicitly use unsigned integers, they are expecting this behavior.
+이러한 경우에는 특수한 플래그가 설정되어 이를 감지할 수 있지만, 대부분 사람들이 unsigned 정수를 명시적으로 사용할 때는 이러한 동작을 의도한 것입니다.
 
-### Signed Integers
+### 부호 있는 정수
 
-*Signed integers* support storing negative values by dedicating the highest bit to represent the sign of the number, in a similar fashion as floating-point numbers do. This halves the range of representable non-negative numbers: the maximum possible 32-bit integer is now $(2^{31}-1)$ and not $(2^{32}-1)$. But the encoding of negative values is not quite the same as for floating-point numbers.
+부호 있는(signed) 정수는 최상위 비트를 부호를 나타내는 데 사용함으로써 음수를 표현할 수 있습니다. 이는 부동 소수점과 유사한 방식입니다. 이로 인해 표현할 수 있는 양의 정수 범위는 절반으로 줄어들고, 32비트 정수의 최댓값은 이제 $(2^{32}-1)$이 아닌 $(2^{31}-1)$입니다. 그러나 음수 값을 인코딩하는 방식은 부동 소수점과는 다릅니다.
 
-Computer engineers are even lazier than programmers — and this is not only motivated by the instinctive desire for simplification, but also by saving transistor space. This can be achieved by reusing circuitry that you already have for other operations, which is what they aimed for when designing the signed integer format:
+컴퓨터 엔지니어는 프로그래머보다도 더 게으릅니다. 이는 단순화를 추구하는 본능 뿐 아니라, 트랜지스터 공간을 절약하기 위한 목적도 있습니다. 이미 존재하는 회로를 다른 연산에 재사용함으로써 이를 달성할 수 있으며, 이는 부호 있는 정수 포맷을 설계할 때 추구된 방향이기도 합니다.
 
-- For an $n$-bit signed integer type, the encodings of all numbers in the $[0, 2^{n-1})$ range remain the same as their unsigned binary representations.
-- All numbers in the $[-2^{n-1}, 0)$ range are encoded sequentially right after the "positive" range — that is, starting with $(-2^{n - 1})$ that has code $(2^{n-1})$ and ending with $(-1)$ that has code $(2^n - 1)$.
+- $n$비트 부호 있는 정수 타입에는 $[0, 2^{n-1})$ 범위의 숫자들은 부호 없는 이진수 표현과 동일하게 인코딩됩니다.
+- $[-2^{n-1}, 0)$ 범위의 숫자들은 양수 범위 바로 다음 값부터 연속적으로 인코딩됩니다. 즉, $(-2^{n - 1})$은 코드 $(2^{n-1})$로, $(-1)$은 코드 $(2^n - 1)$으로 표현됩니다.
 
-One way to look at this is that all negative numbers are just encoded as if they were subtracted from $2^n$ — an operation known as *two's complement*:
+이를 이해하는 한 가지 방법은, 모든 음수가 $2^n$에서 해당 수를 뺀 것처럼 인코딩된다는 것입니다. 이것이 바로 2의 보수 방식입니다.
 
 $$
 \begin{aligned}
@@ -51,28 +51,28 @@ $$
 \end{aligned}
 $$
 
-Here $\bar{x}$ represents bitwise negation, which can be also thought of as subtracting $x$ from $(2^n - 1)$.
+여기서 $\bar{x}$은 비트 반전을 의미하며, 이는 $(2^n - 1)$에서 $x$를 뺀 것과 같은 의미로 볼 수 있습니다.
 
-As an exercise, here are some facts about signed integers:
+연습을 위해, 부호 있는 정수에 관한 몇 가지 사실을 나열해 보겠습니다.
 
-- All positive numbers and zero remain the same as their binary notation.
-- All negative numbers have the highest bit set to one.
-- There are more negative numbers than positive numbers (exactly by one — because of zero).
-- For `int`, if you add $1$ to $(2^{31}-1)$, the result will be $-2^{31}$, represented as `10000000` (for exposition purposes, we will only write 8 bits instead of 32).
-- Knowing a binary notation of a positive number `x`, you can get the binary notation of `-x` as `~x + 1`.
-- `-1` is represented as `~1 + 1 = 11111110 + 00000001 = 11111111`.
-- `-42` is represented as `~42 + 1 = 11010101 + 00000001 = 11010110`.
-- The number `-1 = 11111111` is followed by `0 = -1 + 1 = 11111111 + 00000001 = 00000000`.
+- 모든 양수와 0은 이진 표현 그대로입니다.
+- 모든 음수는 최상위 비트가 1입니다.
+- 0이 포함되기 때문에 양수보다 음수가 하나 더 많습니다.
+- `int`에 대해서 $1$을 $(2^{31}-1)$에 더한다면, 결과는 $-2^{31}$입니다. 이는 8비트로 단순히 표현하면 `1000000`입니다.
+- 양수 `x`의 이진 표현식을 알고 있다면, `-x`를 `~x + 1`로 구할 수 있습니다.
+- `-1`은 `~1 + 1 = 11111110 + 00000001 = 11111111`으로 표현됩니다.
+- `-42`는 `~42 + 1 = 11010101 + 00000001 = 11010110`으로 표현됩니다.
+- `-1 = 11111111` 다음 값은 `0 = -1 + 1 = 11111111 + 00000001 = 00000000`입니다.
 
-The main advantage of this encoding is that you don't have to do anything to convert unsigned integers to signed ones (except maybe check for overflow), and you can reuse the same circuitry for most operations, possibly only flipping the sign bit for comparisons and such.
+이러한 인코딩 방식의 주요 장점은, 부호 없는 정수를 부호 있는 정수로 변환할 때(오버플로우 여부만 확인하면) 별도의 처리가 필요 없다는 것입니다. 또한 대부분의 연산에 동일한 회로를 재사용할 수 있으며, 경우에 따라 부호 비트만 반전시키면 비교 연산도 가능합니다.
 
-That said, you need to be careful with signed integer overflows. Even though they almost always overflow the same way as unsigned integers, programming languages usually consider the possibility of overflow as undefined behavior. If you need to overflow integer variables, convert them to unsigned integers: it's free anyway.
+하지만, 부호 있는 정수에서의 오버플로우는 주의해야 합니다. 비록 부호 없는 정수와 거의 같은 방식으로 오버플로우가 발생한다 해도, 대부분의 프로그래밍 언어는 이를 미정의 동작으로 간주합니다. 오버플로우가 필요한 경우에는 정수를 부호 없는 정수로 변환하세요. 성능 손해도 없습니다.
 
-**Exercise.** What is the only integer value for which `std::abs` produces a wrong result? What will this result be?
+**연습 문제** : `std::abs`가 잘못된 결과를 내는 유일한 정수는 무엇일까요? 그 결과는 어떻게 될까요?
 
-### Integer Types
+### 정수 타입
 
-Integers come in different sizes, but all function roughly the same.
+정수는 다양한 크기로 표현할 수 있지만, 기본적인 동작 방식은 모두 동일합니다.
 
 | Bits | Bytes | Signed C type        | Unsigned C type      | Assembly |
 |-----:|-------|----------------------|----------------------|----------|
@@ -81,25 +81,25 @@ Integers come in different sizes, but all function roughly the same.
 |   32 | 4     | `int`                | `unsigned int`       | `dword`  |
 |   64 | 8     | `long long`          | `unsigned long long` | `qword`  |
 
-[^char]: Note that `char`, `unsigned char`, and `signed char` are technically three distinct types. The C standard leaves it up to the implementation whether the plain `char` is signed or unsigned (on most compilers, it is signed).
+[^char]: `char`, `unsigned char`, 그리고 `signed char`는 기술적으로 서로 다른 세 가지 타입입니다. 표준 C는 기본 `char`가 부호 있는지 없는지를 구현체에 맡기고 있으며, 대부분의 컴파일러에서는 기본적으로 부호 있는 타입입니다.
 
-The bits of an integer are simply stored sequentially. The only ambiguity here is the order in which to store them — left to right or right to left — called *endianness*. Depending on the architecture, the format can be either:
+정수의 비트는 단순히 순차적으로 저장됩니다. 여기서 유일한 모호한 점은 비트를 어떤 순서로 저장하느냐입니다. 왼쪽에서 오른쪽으로 저장할지, 오른쪽에서 왼쪽으로 저장할지를 endianness라고 부릅니다. 아키텍처에 따라 포맷은 다음 두 가지 중 하나가 될 수 있습니다.
 
-- *Little-endian*, which lists *lower* bits first. For example, $42_{10}$ will be stored as $010101$.
-- *Big-endian*, which lists *higher* bits first. All previous examples in this article follow it.
+- Little-endian : 가장 낮은 비트를 먼저 저장합니다. 예를 들어, $42_{10}$은 $010101$로 저장됩니다. 
+- Big-endian : 가장 높은 비트를 먼저 저장합니다. 이 글의 앞부분에 나온 모든 예제가 이를 따릅니다.
 
-This seems like an important architecture aspect, but in most cases, it doesn't make a difference: just pick one style and stick with it. But in some cases it does:
+이것은 아키텍처적으로 중요한 요소처럼 보일 수 있지만, 대부분의 경우 큰 영향을 주지 않습니다. 한 가지 방식을 선택해 일관되게 사용하면 됩니다. 다만 몇몇 경우에는 차이가 있습니다.
 
-- Little-endian has the advantage that you can cast a value to a smaller type (e.g., `long long` to `int`) by just loading fewer bytes, which in most cases means doing nothing — thanks to *register aliasing*, `eax` refers to the first 4 bytes of `rax`, so conversion is essentially free. It is also easier to read values in a variety of type sizes — while on big-endian architectures, loading an `int` from a `long long` array would require shifting the pointer by 2 bytes.
-- Big-endian has the advantage that higher bytes are loaded first, which in theory can make highest-to-lowest routines such as comparisons and printing faster. You can also perform certain checks such as finding out whether a number is negative by only loading its first byte.
+- Little-endian의 장점은 더 적은 바이트만 읽어서 작은 타입으로 변환할 수 있다는 점입니다. 예를 들어 `long long`값을 `int`로 캐스팅할 때, 단순히 앞부분 일부만 읽으면 되므로 별다른 작업이 필요 없습니다. 이는 레지스터 별칭(register aliasing) 덕분입니다. 예를 들어, `rax` 레지스터의 첫 4바이트는 `eax`로 바로 접근할 수 있어 변환 비용이 사실상 없습니다. 또한 다양한 타입 크기의 값을 읽을 때도 더 편리합니다. 반면, Big-endian 아키텍처에서는 `long long` 배열에서 `int`를 읽어오려면 포인터를 2바이트 이동시켜야 할 수 있습니다.
+- Big-endian의 장점은 높은 바이트를 먼저 읽어온다는 것입니다. 이론적으로 이는 비교나 출력과 같은, 높은 자리부터 처리하는 연산에서 더 효율적일 수 있습니다. 또한, 가장 앞의 바이트만 읽어 해당 값이 음수인지 판단할 수도 있습니다.
 
-Big-endian is also more "natural" — this is how we write binary numbers on paper — but the advantage of having faster type conversions outweights it. For this reason, little-endian is used by default on most hardware, although some CPUs are "bi-endian" and can be configured to switch modes on demand.
+Big-endian은 우리가 종이에 이진수를 쓸 때처럼 더 "자연스러운" 방식이기도 하지만, 더 빠른 타입 변환이라는 실용적인 장점 때문에 대부분의 하드웨어에서는 Little-endian을 기본값으로 사용합니다. 일부 CPU는 "bi-endian" 구조로, 필요에 따라 방식을 전환할 수 있습니다.
 
-### 128-bit Integers
+### 128비트 정수
 
-Sometimes we need to multiply two 64-bit integers to get a 128-bit integer — usually to serve as a temporary value and be reduced modulo a 64-bit integer right away.
+가끔 두 개의 64비트 정수를 곱해 128비트 정수를 얻어야 할 때가 있습니다. 보통은 이 값을 임시로 사용한 뒤, 곧바로 64비트 정수로 나머지 연산하여 줄이기 위함입니다.
 
-There are no 128-bit registers to hold the result of such multiplication, so the `mul` instruction, in addition to the normal `mul r r` form where it multiplies the values in registers and keeps the lower half of the result, has another `mul r` mode, where it multiplies whatever is stored in the `rax` register by its operand, and writes the result into two registers — the lower 64 bits of the result will go into `rax`, and the higher 64 bits go into `rdx`:
+이러한 곱셈 결과를 담을 수 있는 128비트 레지스터는 존재하지 않으므로, `mul` 명령어는 일반적으로 두 레지스터의 값을 곱하고 결과의 하위 64비트만 유지하는 `mul r r`형태 외에도, `rax`에 들어 있는 값과 피연산자를 곱하고 결과를 두 레지스터에 나누어 저장하는 `mul r`모드가 존재합니다. 이때 결과의 하위 64비트는 `rax`에, 상위 64비트는 `rdx`에 저장됩니다.
 
 ```nasm
 ; input: 64-bit integers a and b, stored in rsi and rdi
@@ -109,7 +109,7 @@ mov     r8, rdx
 imul    rsi
 ```
 
-Some compilers have a separate type supporting this operation. In GCC and Clang it is available as `__int128`:
+일부 컴파일러에서는 이러한 연산을 지원하는 별도의 타입이 제공됩니다. GCC와 Clang에서는 `__int128`이라는 타입이 있습니다.
 
 ```cpp
 void prod(int64_t a, int64_t b, __int128 *c) {
@@ -117,7 +117,7 @@ void prod(int64_t a, int64_t b, __int128 *c) {
 }
 ```
 
-Its typical use case is to immediately extract either the lower or the higher part of the multiplication and forget about it:
+이 타입은 주로 곱셈 결과의 상위 또는 하위 비트를 즉시 추출하고, 나머지는 버릴 때 사용됩니다.
 
 ```c++
 __int128_t x = 1;
@@ -125,7 +125,7 @@ int64_t hi = x >> 64;
 int64_t lo = (int64_t) x; // will be just truncated
 ```
 
-For all purposes other than multiplication, 128-bit integers are just bundled as two registers. This makes it too weird to have a full-fledged 128-bit type, so the support for it is limited, other than for basic arithmetic operations. For example:
+곱셈 외의 대부분의 상황에서 128비트 정수는 단지 두 개의 64비트 레지스터에 묶여 있을 뿐입니다. 따라서 완전한 128비트 타입을 만들기에는 다소 어색하며, 기본적인 산술 연산을 제외하면 지원이 제한됩니다. 예를 들어
 
 ```c++
 __int128_t add(__int128_t a, __int128_t b) {
@@ -133,7 +133,7 @@ __int128_t add(__int128_t a, __int128_t b) {
 }
 ```
 
-is compiled into:
+이 코드는 다음과 같이 컴파일됩니다.
 
 ```nasm
 add:
@@ -144,4 +144,4 @@ add:
     ret
 ```
 
-Other platforms provide similar mechanisms for dealing with longer-than-word multiplication. For example, Arm has `mulhi` and `mullo` instructions, returning lower and higher parts of the multiplication, and x86 [SIMD extensions](/hpc/simd) have similar 32-bit instructions.
+다른 플랫폼에서도 워드보다 긴 곱셈을 처리하기 위해 유사한 매커니즘을 제공합니다. 예를 들어, Arm 아키텍처에서는 곱셈 결과의 하위 및 상위 비트를 반환하는 `mullo` 및 `mulhi` 명령어가 있으며, x86의 [SIMD 확장](/hpc/simd)에도 비슷한 32비트용 명령어들이 존재합니다.

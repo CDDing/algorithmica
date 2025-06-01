@@ -3,33 +3,33 @@ title: Floating-Point Numbers
 weight: 1
 ---
 
-The users of floating-point arithmetic deserve one of these IQ bell curve memes — because this is how the relationship between it and most people typically proceeds:
+부동 소수점 산술 연산의 사용자들은 흔히 IQ 벨 커브 밈의 한 장면에 어울립니다. 대부분의 사람들이 부동 소수점과 겪는 관계는 다음과 같은 과정을 따르기 때문입니다.
 
-- Beginner programmers use it everywhere as if it was some magic unlimited-precision data type.
-- Then they discover that `0.1 + 0.2 != 0.3` or some other quirk like that, freak out, start thinking that some random error term is added to every computation, and for many years avoid any real data types completely.
-- Then they finally man up, read the specification of how IEEE-754 floats work and start using them appropriately.
+- 초보 프로그래머는 부동 소수점이 마치 무제한 정밀도를 가진 마법 같은 데이터 타입인 것처럼 아무데나 사용합니다.
+- 그러다 `0.1 + 0.2 != 0.3`과 같은 현상이나 다른 이상한 동작을 발견하면 충격을 받고, 마치 모든 계산에 무작위 오차가 끼어드는 것처럼 여기며, 이후 수년 동안 제대로 된 수치형 타입 사용을 피합니다.
+- 마지막으로 이 과정을 극복한 사람은 IEEE-754 부동 소수점의 동작 방식을 읽고 이해한 뒤, 올바르게 사용하기 시작합니다.
 
-Unfortunately, too many people are still at stage 2, breeding various misconceptions about floating-point arithmetic — thinking that it is fundamentally imprecise and unstable, and slower than integer arithmetic.
+안타깝게도 아직도 너무 많은 사람들이 두 번째 단계에 머무르며, 부동 소수점 산술 연산에 대해 여러 가지 오해를 낳고 있습니다. 예를 들어, 부동 소수점은 근본적으로 부정확하고 불안정하며, 정수 연산보다 느리다고 생각하는 경우가 많습니다.
 
 ![](../img/iq.svg)
 
-But these are all just myths. Floating-point arithmetic is often *faster* than integer arithmetic because of specialized instructions, and real number representations are thoroughly standardized and follow simple and deterministic rules in terms of rounding, allowing you to manage computational errors reliably.
+하지만 이는 모두 오해에 불과합니다. 부동 소수점 연산은 종종 정수 연산보다 더 빠를 수 있습니다. 이는 부동 소수점 전용 명령어 덕분이며, 실수 표현은 반올림 방식에 기반한 단순하고 결정적인 규칙을 따르기 때문에 계산 오차를 안정적으로 관리할 수 있도록 철저히 표준화되어 있습니다.
 
-In fact, it is so reliable that some high-level programming languages, most notably JavaScript, don't have integers at all. In JavaScript, there is only one `number` type, which is internally stored as a 64-bit `double`, and due to the way floating-point arithmetic works, all integer numbers between $-2^{53}$ and $2^{53}$ and results of computations involving them can be stored exactly, so from a programmer's perspective, there is little practical need for a separate integer type.
+실제로, JavaScript와 같이 일부 고수준 프로그래밍 언어는 아예 정수형 타입이 존재하지 않습니다. JavaScript에서는 `number`라는 단일 타입만 존재하며, 이는 내부적으로 64비트 `double` 형식으로 저장됩니다. 부동 소수점 연산의 특성 덕분에 $-2^{53}$부터 $2^{53}$ 사이의 모든 정수와 그 범위 내에서의 계산 결과는 정확히 표현될 수 있으므로, 프로그래머 입장에서 별도의 정수 타입이 굳이 필요하진 않은 셈입니다.
 
-One notable exception is when you need to perform bitwise operations with numbers, which *floating-point units* (the coprocessors responsible for operations on floating-point numbers) typically don't support. In this case, they need to be converted to integers, which is so frequently used in JavaScript-enabled browsers that arm [added a special "FJCVTZS" instruction](https://community.arm.com/developer/ip-products/processors/b/processors-ip-blog/posts/armv8-a-architecture-2016-additions) that stands for "Floating-point Javascript Convert to Signed fixed-point, rounding toward Zero" and does what it says it does — converts real to integer the exact same way as JavaScript — which is an interesting example of the software-hardware feedback loop in action.
+다만 예외적으로, 숫자에 대해 비트 단위 연산이 필요한 경우에는 문제가 발생할 수 있습니다. 부동 소수점 연산 유닛은 일반적으로 비트 연산을 지원하지 않기 때문에, 이 경우 정수로의 변환이 필요합니다. 이 동작은 JavaScript 브라우저에서 매우 자주 사용되기 때문에, ARM은 이를 위해 [특별한 "FJCVTZS" 명령어](https://community.arm.com/developer/ip-products/processors/b/processors-ip-blog/posts/armv8-a-architecture-2016-additions)를 도입했습니다. 이 명령어는 "Floating-point JavaScript Convert to Signaled fixed-point, rounding toward Zero"의 약자로, 실수를 JavaScript와 동일한 방식으로 정수로 변환하는 명령어입니다. 이는 소프트웨어의 요구가 하드웨어에 반영되는 피드백 루프의 흥미로운 사례이기도 합니다.
 
-But unless you are a JavaScript developer who uses real types exclusively to emulate integer arithmetic, you probably need a more in-depth guide about floating-point arithmetic, so we are going to start with a broader subject.
+하지만 JavaScript에서 정수 연산을 흉내 내기 위해 실수 타입만 사용하는 특수한 경우가 아니라면, 부동 소수점 산술 연산에 대해 좀 더 깊이 있는 가이드를 원할 것입니다. 그래서 이번에는 더 넓은 주제로부터 시작하려 합니다.
 
-## Real Number Representations
+## 실수 표현식
 
-If you need to deal with real (non-integer) numbers, you have several options with varying applicability. Before jumping straight to floating-point numbers, which is what most of this article is about, we want to discuss the available alternatives and the motivation behind them — after all, people who avoid floating-point arithmetic do have a point.
+정수 이외의 실수 값을 다뤄야 한다면, 상황에 따라 사용할 수 있는 여러 가지 방법이 있습니다. 이 글의 대부분은 부동 소수점 수에 대한 내용이지만, 본격적으로 들어가기에 앞서 사용할 수 있는 대안들과 그러한 방식들이 등장하게 된 배경에 대해 먼저 살펴보려 합니다. 결국, 부동 소수점 연산을 피하려는 경우도 있으니까요.
 
-### Symbolic Expressions
+### 기호 표현식
 
-The first and the most cumbersome approach is to store not the resulting values themselves but the algebraic expressions that produce them.
+가장 먼저 떠오르는, 하지만 가장 번거로운 접근 방식은 결과값 그 자체가 아닌 값을 만들어내는 대수적 표현식을 저장하는 것입니다.
 
-Here is a simple example. In some applications, such as computational geometry, apart from adding, subtracting and multiplying numbers, you also need to divide without rounding, producing a rational number, which can be exactly represented with a ratio of two integers:
+간단한 예를 들어보겠습니다. 계산 기하학 같은 분야에서는 덧셈, 뺄셈, 곱셈 뿐만 아니라 반올림 없이 나눗셈이 필요한 경우가 있는데, 이때 두 정수의 비로 정확히 표현할 수 있는 유리수가 필요합니다.
 
 ```c++
 struct r {
@@ -43,7 +43,7 @@ bool operator<(r a, r b) { return a.x * b.y < b.x * a.y; }
 // ...and so on, you get the idea
 ```
 
-This ratio can be made irreducible, which would even make this representation unique:
+이 비율은 기약분수 형태로 만들 수 있으며, 그렇게 하면 표현식이 유일해집니다.
 
 ```c++
 struct r {
@@ -58,17 +58,17 @@ struct r {
 };
 ```
 
-This is how *computer algebra* systems such as WolframAlpha and SageMath work: they operate solely on symbolic expressions and avoid evaluating anything as real values.
+이러한 방식은 WolframAlpha나 SageMath같은 컴퓨터 대수 시스템에서도 사용됩니다. 이들 시스템은 오직 기호적 표현식만을 다루며, 실수 값으로 계산하는 것을 피합니다.
 
-With this method, you get absolute precision, and it works well when you have a limited scope such as only supporting rational numbers. But this comes at a large computational cost because in general, you would need to somehow store the whole history of operations that led to the result and take it into account each time you perform a new operation — which quickly becomes unfeasible as the history grows.
+이 방법을 사용하면 절대적인 정밀도를 확보할 수 있으며, 유리수만 지원하는 등 범위가 제한된 경우에는 효과적입니다. 하지만 상당한 계산 비용이 따르는데, 일반적으로는 결과에 도달하기까지의 모든 연산 과정을 저장하고, 매 연산 시 이를 고려해야 하기 때문입니다. 연산 내역이 누적될수록 이 방식은 금세 비현실적으로 변합니다.
 
-### Fixed-Point Numbers
+### 고정 소수점
 
-Another approach is to stick to integers, but treat them as if they were multiplied by a fixed constant. This is essentially the same as changing units of measurement for more up-to-scale ones.
+또 다른 방법은 정수를 사용하는 것으로, 어떤 고정된 상수를 곱한 값처럼 다루는 방식입니다. 본질적으로는 단위를 더 정밀한 값으로 바꾸는 것과 같습니다.
 
-Because some values can't be represented exactly, this makes computations imprecise: you need to round the results to nearest representable value.
+하지만 어떤 값들은 정확히 표현할 수 없기 때문에, 결과는 부정확해질 수 있으며, 가장 가까운 표현 가능한 값으로 반올림해야 합니다.
 
-This approach is commonly used in financial software, where you *really* need a straightforward way to manage rounding errors so that the final numbers add up. For example, NASDAQ uses $\frac{1}{10000}$-th of a dollar as its base unit in its stock listings, meaning that you get the precision of exactly 4 digits after comma in all transactions.
+이 방식은 반올림 오차를 명확히 관리해야 하는 금융 소프트웨어에서 흔히 사용됩니다. 예를 들어, NASDAQ은 주식 거래에서 $\frac{1}{10000}$ 달러를 기본 단위로 사용하며, 이는 모든 거래가 소수점 이하 4자리까지 정확히 표현된다는 뜻입니다.
 
 ```c++
 struct money {
@@ -82,21 +82,21 @@ std::string to_string(money) {
 money operator*(money x, money y) { return {x.v * y.v / 10000}; }
 ```
 
-Apart from introducing rounding errors, a bigger problem is that they become useless when the scaling constant is misplaced. If the numbers you are working with are too large, then the internal integer value will overflow, and if the numbers are too small, they will be just rounded down to zero. Interestingly, the former case once [became an issue](https://www.wsj.com/articles/berkshire-hathaways-stock-price-is-too-much-for-computers-11620168548) on NASDAQ when the Berkshire Hathaway stock price approached $\frac{2^{32} - 1}{10000}$ = $429,496.7295 and could no longer fit in an unsigned 32-bit integer.
+반올림 오차 외에도 더 큰 문제는 스케일링 상수가 잘못 사용되었을 때입니다. 다루는 수가 너무 크면 내부 정수 값이 오버플로우 되고, 너무 작으면 0으로 반올림되어 버립니다. 실제로 이러한 사례가 NASDAQ에서 [발생한 적](https://www.wsj.com/articles/berkshire-hathaways-stock-price-is-too-much-for-computers-11620168548)이 있는데, Berkshire Hathaway의 주가가 $\frac{2^{32} - 1}{10000}$ = $429,496.7295에 가까워지면서 32비트 unsigned int로 표현할 수 없게 된 것입니다.
 
-This problem makes fixed-point arithmetic fundamentally unsuitable for applications where you need to use both small and large numbers, for example, evaluating certain physics equations:
+이러한 문제로 인해, 고정 소수점 연산은 아주 크거나 아주 작은 수를 모두 다뤄야 하는 애플리케이션, 예를 들어 물리 방정식 계산과같은 곳에는 근본적으로 부적합합니다.
 
 $$
 E = m c^2
 $$
 
-In this particular one, $m$ is typically of the same order of magnitude as the mass of a proton ($1.67 \cdot 10^{-27}$ kg) and $c$ is the speed of light ($3 \cdot 10^9$ m/s).
+이 식에서는 $m$이 일반적으로 양성자의 질량인 $1.67 \cdot 10^{-27}$kg 정도이고, $c$는 빛의 속도인 $3 \cdot 10^9$ m/s입니다.
 
-### Floating-Point Numbers
+### 부동 소수점
 
-In most numerical applications, we are mainly concerned with the relative error. We want the result of our computations to differ from the truth by no more than, say, $0.01\\%$, and we don't really care what that $0.01\\%$ equates to in absolute units.
+대부분의 수치 계산 애플리케이션에서는 주로 상대 오차에 신경씁니다. 예를 들어 계산 결과가 실제 값과 $0.01%$ 이상 차이 나지 않기를 바라며, 그 $0.01%$ 가 절대 단위로 얼마나 되는지는 크게 중요하지 않습니다.
 
-Floating-point numbers solve this by storing a certain number of the most significant digits and the order of magnitude of the number. More precisely, they are represented with an integer (called *significand* or *mantissa*) and scaled using an exponent of some fixed base — most commonly, 2 or 10. For example:
+부동 소수점은 이 문제를 해결하기 위해 수의 가장 의미있는 숫자 자리수들과 수의 크기 수준을 함께 저장합니다. 더 정확히 말하면 정수 형태의 값(이를 가수부 라고 부릅니다)을 고정된 지수로 스케일링하여 표현합니다. 예를 들어 다음과 같습니다.
 
 $$
 1.2345 =
@@ -105,9 +105,9 @@ $$
       ^{\overbrace{-4}^\text{exponent}}
 $$
 
-Computers operate on fixed-length binary words, so when designing a floating-point format for hardware, you'd want a fixed-length binary format where some bits are dedicated for the mantissa (for more precision) and some for the exponent (for more range).
+컴퓨터는 고정 길이의 이진 워드를 처리하므로, 하드웨어용 부동소수점 형식을 설계할 때는 일부 비트를 가수부(정밀도 향상)를 위해, 또 일부는 지수부(표현 범위 확대)를 위해 사용하는 고정 길이 이진 형식을 원하게 됩니다.
 
-This handmade float implementation hopefully conveys the idea:
+아래의 수제 float 구현이 개념을 잘 전달해 주기를 바랍니다.
 
 ```cpp
 // DIY floating-point number
@@ -117,29 +117,29 @@ struct fp {
 };
 ```
 
-This way we can represent numbers in the form $\pm \\; m \times 2^e$ where both $m$ and $e$ are bounded *and possibly negative* integers — which would correspond to negative or small numbers respectively. The distribution of these numbers is very much non-uniform: there are roughly as many numbers in the $[0, 1)$ range as in the $[1, +\infty)$ range.
+이런 방식으로 숫자를 $\pm m \times 2^e$ 형태로 표현할 수 있으며, 여기서 $m$과 $e$는 음수일 수도 있는 정수입니다. 이는 각각 음수 값이나 매우 작은 값들을 표현할 수 있게 해줍니다. 이때 표현 가능한 숫자의 분포는 매우 불균일합니다. 예를 들어, $[0, 1)$ 범위의 수 개수는 $[1, +\infty]$ 범위의 수와 거의 비슷할 정도입니다.
 
-Note that these representations are not unique for some numbers. For example, number $1$ can be represented as
+하지만 어떤 수들에 대해서는 이 표현이 유일하지 않을 수 있습니다. 예를 들어 숫자 $1$은 다음과 같이 여러 방식으로 표현될 수 있습니다.
 
 $$
 1 \times 2^0 = 2 \times 2^{-1} = 256 \times 2^{-8}
 $$
 
-and in 28 other ways that don't overflow the mantissa.
+또한 가수부가 오버플로우되지 않는 범위 내에서 이러한 방식으로 표현 가능한 경우가 28가지 더 존재합니다.
 
-This can be problematic for some applications, such as comparisons or hashing. To fix this, we can *normalize* these representations using a certain convention. In decimal, the [standard form](https://en.wikipedia.org/wiki/Scientific_notation) is to always put the comma after the first digit (`6.022e23`), and for binary, we can do the same:
+이는 비교 연산이나 해싱과 같은 일부 애플리케이션에서 문제가 될 수 있습니다. 이를 해결하기 위해 특정 표준 방식으로 표현을 정규화해야 합니다. 10진수에서는 [과학적 표기법](https://en.wikipedia.org/wiki/Scientific_notation)처럼 항상 첫 자릿수 뒤에 소수점을 찍는 규칙이 있고(`6.022e23`), 이진수에서도 비슷한 방식으로 표현할 수 있습니다.
 
 $$
 42 = 10101_2 = 1.0101_2 \times 2^5
 $$
 
-Notice that, following this rule, the first bit is always 1. It is redundant to store it explicitly, so we will just pretend that it's there and only store the other bits, which correspond to some rational number in the $[0, 1)$ range. The set of representable numbers is now roughly
+이 규칙에 따르면 항상 첫 번째 비트는 1입니다. 이는 명시적으로 저장할 필요가 없으므로, 해당 비트는 생략하고 나머지 비트만 저장해도 충분합니다. 이는 $[0, 1)$ 범위의 어떤 유리수로 해석할 수 있습니다. 따라서 표현 가능한 수의 집합은 다음과 같습니다.
 
 $$
 \{ \pm \; (1 + m) \cdot 2^e \; | \; m = \frac{x}{2^{32}}, \; x \in [0, 2^{32}) \}
 $$
 
-Since $m$ is now a nonnegative value, we will now make it unsigned integer, and instead add a separate Boolean field for the sign of the number:
+$m$이 이제 음수가 아니기 때문에, 이를 unsigned 정수로 바꿀 수 있으며, 별도의 Boolean 필드에 대신 부호 정보를 저장합니다.
 
 ```cpp
 struct fp {
@@ -149,7 +149,7 @@ struct fp {
 };
 ```
 
-Now, let's try to implement some arithmetic operation — for example, multiplication — using our handmade floats. Using the new formula, the result should be:
+이제 간단한 산술 연산 하나, 예를 들어 곱셈을 구현해 봅시다. 위 정의에 따르면, 곱셈은 다음과 같이 정리할 수 있습니다.
 
 $$
 \begin{aligned}
@@ -160,12 +160,12 @@ c  &= a \cdot b
 \end{aligned}
 $$
 
-The groupings now seem straightforward to calculate, but there are two nuances:
+이제 계산 방식이 꽤 직관적으로 보이지만, 다음 두 가지 주의사항이 있습니다.
 
-- The new mantissa is now in the $[0, 3)$ range. We need to check if it is larger than $1$ and normalize the representation, applying the following formula: $1 + m = (1 + 1) + (m - 1) = (1 + \frac{m - 1}{2}) \cdot 2$.
-- The resulting number can be (and very likely is) not representable exactly due to the lack of precision. We need twice as many bits to account for the $m_a \cdot m_b$ term, and the best we can do here is to round it to the nearest representable number.
+- 새로운 가수부는 이제 $[0, 3)$ 범위에 있습니다. $1$보다 클 경우 표현식을 다음 식을 적용해 정규화해야 합니다. $1 + m = (1 + 1) + (m - 1) = (1 + \frac{m - 1}{2}) \cdot 2$.
+- 결과값은 정밀도가 부족하기 때문에 보통 정확하게 표현할 수 없습니다. 특히 $m_a \cdot m_b$ 항을 정확하게 표현하려면 두 배의 비트 수가 필요합니다. 따라서 여기서 가능한 최선은 가장 가까운 표현 가능한 값으로 반올림하는 것입니다.
 
-Since we need some extra bits to properly handle the mantissa overflow issue, we will reserve one bit from $m$ thus limiting it to $[0,2^{31})$ range. 
+이러한 오버플로우를 안정적으로 처리하려면 몇 개의 추가 비트가 필요하므로, $m$에서 비트 하나를 비워둡니다. 따라서 $m$의 범위는 $[0, 2^{31})$이 됩니다.
 
 ```c++
 fp operator*(fp a, fp b) {
@@ -187,6 +187,6 @@ fp operator*(fp a, fp b) {
 }
 ```
 
-Many applications that require higher levels of precision use software floating-point arithmetic in a similar fashion. But of course, you don't want to execute a sequence of 10 or so instructions that this code compiles to each time you want to multiply two real numbers, so on modern CPUs, floating-point arithmetic is implemented in hardware — usually as separate coprocessors due to its complexity.
+고정된 하드웨어 부동소수점 대신, 더 높은 정밀도를 요구하는 많은 애플리케이션에서는 이와 비슷한 방식의 소프트웨어 기반 부동소수점 연산을 사용합니다. 따라서 두 수를 곱할때마다 이 코드가 컴파일되는 명령어(약 10개)를 매번 실행하는 것은 비효율적입니다. 그래서 현대 CPU에서는 부동소수점 연산을 하드웨어 수준에서 지원하며, 보통 그 복잡성 때문에 별도의 보조 프로세서로 구현되어 있습니다.
 
-The *floating-point unit* of x86 (often referred to as x87) has separate registers and its own tiny instruction set that supports memory operations, basic arithmetic, trigonometry, and some common operations such as logarithm, exponent, and square root. To make these operations properly work together, some additional details of floating-point number representation need to be clarified — which we will do in [the next section](../ieee-754).
+x86의 부동 소수점 유닛(일명 x87)은 별도의 레지스터들과 고유한 소형 명령어 집합을 갖고 있으며, 메모리 연산, 기본 산술 연산, 삼각함수, 로그, 지수, 제곱근 등의 흔한 연산을 지원합니다. 이러한 연산들이 정확하게 동작하려면, 부동 소수점 숫자의 표현 방식에 대한 추가적인 세부 사항을 명확히 해야 합니다. 이에 대해서는 [다음 글](../ieee-754)에서 자세히 다루겠습니다.

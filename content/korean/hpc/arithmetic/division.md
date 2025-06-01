@@ -3,13 +3,13 @@ title: Integer Division
 weight: 6
 ---
 
-Compared to other arithmetic operations, division works very poorly on x86 and computers in general. Both floating-point and integer division is notoriously hard to implement in hardware. The circuitry takes a lot of space in the ALU, the computation has a lot of stages, and as the result, `div` and its siblings routinely take 10-20 cycles to complete, with latency being slightly less on smaller data type sizes.
+다른 산술 연산과 비교하면, 나눗셈은 x86뿐만 아니라 대부분의 컴퓨터 아키텍처에서 성능이 좋지 않습니다. 부동소수점과 정수 나눗셈 모두 하드웨어로 구현하기 매우 까다롭습니다. ALU에서 회로가 차지하는 면적도 크고, 계산 과정도 여러 단계로 이루어지기 때문에 `div` 명령어와 그 관련 명령어들은 일반적으로 실행에 10~20 사이클이 걸립니다. 데이터 크기가 작을수록 약간 더 빠르긴 하지만, 여전히 느린 편입니다.
 
-### Division and Modulo in x86
+### x86에서의 나눗셈과 나머지
 
-Since nobody wants to duplicate all this mess for a separate modulo operation, the `div` instruction serves both purposes. To perform a 32-bit integer division, you need to put the dividend *specifically* in the `eax` register and call `div` with the divisor as its sole operand. After this, the quotient will be stored in `eax` and the remainder will be stored in `edx`.
+나머지 연산을 위해 별도의 회로를 따로 구현하고 싶어하는 사람은 없기 때문에, x86에서는 `div` 명령어 하나로 나눗셈과 나머지 연산을 모두 처리합니다. 32비트 정수 나눗셈을 수행할 때는 나눠지는 수를 반드시 `eax`에 넣고, 나누는 수를 피연산자로 넘겨 `div` 명령어를 호출합니다. 연산이 끝나면 몫은 `eax`에, 나머지는 `edx`에 저장됩니다.
 
-The only caveat is that the dividend actually needs to be stored in *two* registers, `eax` and `edx`: this mechanism enables 64-by-32 or even 128-by-64 division, similar to how [128-bit multiplication](../integer) works. When performing the usual 32-by-32 signed division, we need to sign-extend `eax` to 64 bits and store its higher part in `edx`:
+단, 여기서 주의할 점은 나눠지는 수가 실제로 두 개의 레지스터 `edx`와 `eax`에 걸쳐 저장되어야한다는 것입니다. 이 방식은 64비트 값을 32비트로 나누거나, 더 나아가 128비트를 64비트로 나누는 것도 가능하게 해줍니다. 이는 [128비트 곱셈](../integer) 방식과 유사합니다. 일반적인 32비트 부호 있는 정수 나눗셈을 수행할 때는, `eax`의 값을 64비트로 부호 확장하여 상위 비트를 `edx`에 저장해야 합니다.
 
 ```nasm
 div(int, int):
@@ -19,7 +19,7 @@ div(int, int):
     ret
 ```
 
-For unsigned division, you can just set `edx` to zero so that it doesn't interfere:
+부호 없는 정수의 경우에는 `edx`를 0으로 초기화해서 연산에 영향을 주지 않도록 하면 됩니다.
 
 ```nasm
 div(unsigned, unsigned):
@@ -29,7 +29,7 @@ div(unsigned, unsigned):
     ret
 ```
 
-An in both cases, in addition to the quotient in `eax`, you can also access the remainder as `edx`:
+두 경우 모두 결과는 동일하게 사용 가능합니다. `eax`에는 몫이, `edx`에는 나머지가 저장되므로, 예를 들어 나머지만 구하려면 다음과 같이 작성할 수 있습니다.
 
 ```nasm
 mod(unsigned, unsigned):
@@ -40,7 +40,7 @@ mod(unsigned, unsigned):
     ret
 ```
 
-You can also divide 128-bit integer (stored in `rdx:rax`) by a 64-bit integer:
+`rdx:rax`에 저장된 128비트 정수를 64비트 정수로 나눌 수도 있습니다.
 
 ```nasm
 div(u128, u64):
@@ -52,39 +52,39 @@ div(u128, u64):
     ret
 ```
 
-The high part of the dividend should be less than the divisor, otherwise an overflow occurs. Because of this constraint, it is [hard](https://danlark.org/2020/06/14/128-bit-division/) to get compilers to produce this code by themselves: if you divide a [128-bit integer type](../integer) by a 64-bit integer, the compiler will bubble-wrap it with additional checks which may actually be unnecessary.
+단, 나눠지는 수의 상위 비트가 나누는 수보다 작아야 합니다. 그렇지 않으면 오버플로우가 발생합니다. 이 제약 조건 때문에 컴파일러가 이 코드를 자동으로 생성하는 것은 [쉽지 않습니다](https://danlark.org/2020/06/14/128-bit-division/). 만약 [128비트 정수형 타입](../integer)을 64비트 정수로 나누려 하면, 컴파일러는 실제로는 필요하지 않을 수 있는 추가 검사 코드를 삽입하는 경향이 있습니다.
 
-### Division by Constants
+### 상수로 나누기
 
-Integer division is painfully slow, even when fully implemented in hardware, but it can be avoided in certain cases if the divisor is constant. A well-known example is the division by a power of two, which can be replaced by a one-cycle binary shift: the [binary GCD algorithm](/hpc/algorithms/gcd) is a delightful showcase of this technique.
+정수 나눗셈은 하드웨어에서 완전히 구현되어 있다 하더라도 매우 느릴 수 있습니다. 그러나 나누는 수가 상수일 경우, 특정 상황에서는 나눗셈을 피할 수 있습니다. 잘 알려진 예로, 나누는 수가 2의 거듭제곱일 경우 나눗셈을 단 한 사이클만 소요되는 이진 시프트 연산으로 대체할 수 있습니다. [이진 GCD 알고리즘](/hpc/algorithms/gcd)은 이러한 기법을 잘 보여주는 예시입니다.
 
-In the general case, there are several clever tricks that replace division with multiplication at the cost of a bit of precomputation. All these tricks are based on the following idea. Consider the task of dividing one floating-point number $x$ by another floating-point number $y$, when $y$ is known in advance. What we can do is to calculate a constant
+보다 일반적인 경우에도, 약간의 사전 계산을 통해 나눗셈을 곱셈으로 대체할 수 있는 여러 가지 영리한 트릭들이 존재합니다. 이러한 기법들은 모두 다음과 같은 아이디어에 기반합니다. 사전에 알려진 부동 소수점 숫자 $y$로 다른 부동 소수점 숫자 $x$를 나누는 작업을 생각해 봅시다. 이때 할 수 있는 일은 다음과 같은 상수를 미리 계산하는 것입니다.
 
 $$
 d \approx y^{-1}
 $$
 
-and then, during runtime, we will calculate
+그리고 런타임에는 다음과 같은 계산을 수행합니다.
 
 $$
 x / y = x \cdot y^{-1} \approx x \cdot d
 $$
 
-The result of $\frac{1}{y}$ will be at most $\epsilon$ off, and the multiplication $x \cdot d$ will only add another $\epsilon$ and therefore will be at most $2 \epsilon + \epsilon^2 = O(\epsilon)$ off, which is tolerable for the floating-point case.
+$\frac{1}{y}$의 계산 결과는 최대 $\epsilon$의 오차를 가질 수 있으며, 그 뒤에 수행되는 곱셈 $x \cdot d$ 역시 추가적으로 $\epsilon$의 오차를 일으킬 수 있습니다. 따라서 전체 오차는 $2 \epsilon + \epsilon^2 = O(\epsilon)$ 정도이며, 이는 부동 소수점 연산에서 허용 가능한 수준입니다.
 
 <!--
 For example, `double` has 53 mantissa bits and therefore a machine epsilon of $\frac{1}{53}$, , if we also make sure it is rounded the right way.
 -->
 
-### Barrett Reduction
+### Barrett 감법
 
-How to generalize this trick for integers? Calculating `int d = 1 / y` doesn't seem to work, because it will just be zero. The best thing we can do is to express it as
+정수에는 이러한 트릭을 어떻게 적용할까요? `int d = 1 / y`와 같이 계산하는 방식은 제대로 작동하지 않습니다. 왜냐하면 결과가 0이 되어버리기 때문입니다. 가장 좋은 방법은 다음과 같이 표현하는 것입니다.
 
 $$
 d = \frac{m}{2^s}
 $$
 
-and then find a "magic" number $m$ and a binary shift $s$ such that `x / y == (x * m) >> s` for all `x` within range.
+그리고 특정 범위 내의 모든 `x`에 대해 `x / y == (x * m) >> s`를 만족시키는 매직 넘버 $m$과 이진 시프트 값 $s$를 찾는 것입니다.
 
 $$
   \lfloor x / y \rfloor
@@ -93,7 +93,7 @@ $$
 = \lfloor x \cdot \frac{m}{2^s} \rfloor
 $$
 
-It can be shown that such a pair always exists, and compilers actually perform an optimization like that by themselves. Every time they encounter a division by a constant, they replace it with a multiplication and a binary shift. Here is the generated assembly for dividing an `unsigned long long` by $(10^9 + 7)$:
+컴파일러는 이러한 최적화를 스스로 수행합니다. 컴파일러는 상수로 나누는 연산을 만나면, 이를 곱셈과 이진 시프트로 자동으로 변환합니다. 예를 들어, `unsigned long long`값을 $10^9 + 7$로 나누는 연산에 대해 생성된 어셈블리 코드는 다음과 같습니다.
 
 ```nasm
 ;  input (rdi): x
@@ -105,23 +105,24 @@ mov    rax, rdx
 shr    rax, 29                    ; binary shift of the result
 ```
 
-This technique is called *Barrett reduction*, and it's called "reduction" because it is mostly used for modulo operations, which can be replaced with a single division, multiplication and subtraction by the virtue of this formula:
+이 기법은 Barrett 감법이라 불리며, 감법이라 불리는 이유는 주로 다음 공식을 활용해 나머지 연산을 나눗셈, 곱셈, 뺄셈 한 번씩으로 대체하는 데 사용되기 때문입니다.
 
 $$
 r = x - \lfloor x / y \rfloor \cdot y
 $$
 
-This method requires some precomputation, including performing one actual division. Therefore, this is only beneficial when you perform not just one but a few divisions, all with the same constant divisor.
+이 방법은 하나의 실제 나눗셈을 포함한 몇 가지 사전 계산이 필요하므로, 단 한 번의 나눗셈에는 적합하지 않습니다. 그러나 같은 상수로 여러 번 나눗셈을 수행해야 하는 경우에는 매우 효율적인 최적화 기법입니다.
 
-### Why It Works
+### 작동 원리
 
-It is not very clear why such $m$ and $s$ always exist, let alone how to find them. But given a fixed $s$, intuition tells us that $m$ should be as close to $2^s/y$ as possible for $2^s$ to cancel out. So there are two natural choices: $\lfloor 2^s/y \rfloor$ and $\lceil 2^s/y \rceil$. The first one doesn't work, because if you substitute
+왜 이러한 $m$과 $s$가 항상 존재하는 지, 그리고 이를 어떻게 찾을 수 있는지는 명확하지 않을 수 있습니다. 하지만 $s$가 고정되어 있다면, 직관적으로는 $2^s$가 약분되도록 $m$이 $2^s/y$에 최대한 가까워야 한다는 점은 알 수 있습니다. 따라서 두 가지 자연스러운 선택지가 있습니다. $\lfloor 2^s/y \rfloor$와 $\lceil 2^s/y \rceil$입니다. 첫 번째 식은 작동하지 않는데, 왜냐하면 다음과 같이 대입하면
 
 $$
 \Bigl \lfloor \frac{x \cdot \lfloor 2^s/y \rfloor}{2^s} \Bigr \rfloor
 $$
 
-then for any integer $\frac{x}{y}$ where $y$ is not even, the result will be strictly less than the truth. This only leaves the other case, $m = \lceil 2^s/y \rceil$. Now, let's try to derive the lower and upper bounds for the result of the computation:
+$y$가 짝수가 아닌 어떤 정수 나눗셈 $x / y$에 대해 실제보다 작게 나오기 때문입니다. 그래서 결국 남는 선택지는 $m = \lceil 2^s/y \rceil$입니다. 이제 계산 결과의 상한과 하한을 유도해봅시다.
+
 
 $$
   \lfloor x / y \rfloor
@@ -129,7 +130,7 @@ $$
 = \Bigl \lfloor \frac{x \cdot \lceil  2^s /y \rceil}{2^s} \Bigr \rfloor
 $$
 
-Let's start with the bounds for $m$:
+먼저 $m$의 범위부터 살펴보겠습니다.
 
 $$
 2^s / y
@@ -139,7 +140,7 @@ $$
 2^s / y + 1
 $$
 
-And now for the whole expression:
+이제 전체 표현식은 다음 범위 내에 위치합니다.
 
 $$
 x / y - 1
@@ -149,9 +150,9 @@ x / y - 1
 x / y + x / 2^s
 $$
 
-We can see that the result falls somewhere in a range of size $(1 + \frac{x}{2^s})$, and if this range always has exactly one integer for all possible $x / y$, then the algorithm is guaranteed to give the right answer. Turns out, we can always set $s$ to be high enough to achieve it.
+결과는 $(1 + \frac{x}{2^s})$ 크기의 범위 내에 존재합니다. 이 범위가 가능한 모든 $x/y$에 대해 항상 정확히 하나의 정수를 포함한다면, 알고리즘은 항상 올바른 값을 반환합니다. 그리고 실제로는 $s$를 충분히 크게 잡으면 항상 이 조건을 만족시킬 수 있습니다.
 
-What will be the worst case here? How to pick $x$ and $y$ so that the $(x/y - 1, x/y + x / 2^s)$ range contains two integers? We can see that integer ratios don't work because the left border is not included, and assuming $x/2^s < 1$, only $x/y$ itself will be in the range. The worst case is actually the $x/y$ that comes closest to $1$ without exceeding it. For $n$-bit integers, that is the second-largest possible integer divided by the first-largest:
+그렇다면 최악의 경우는 어떤 상황일까요? $(x/y - 1, x/y + x / 2^s)$ 범위에 두 개의 정수가 포함되도록 $x$와 $y$를 어떻게 선택할 수 있을까요? 정수 비율은 작동하지 않는다는 점을 알 수 있습니다. 그 이유는 이 구간이 좌측 경계를 포함하지 않기 때문입니다. 또한, $x / 2^s < 1$이라 가정하면 이 범위에 포함될 수 있는 유일한 정수는 $x/y$자신 뿐입니다. 즉, 최악의 경우는 $x/y$가 1보다 크지 않으면서도 1에 가장 가깝게 접근하는 경우입니다. $n$비트 정수로 구성할 때, 이는 가능한 두 번째로 큰 정수를 가능한 가장 큰 정수로 나눈 경우입니다.
 
 $$
 \begin{aligned}
@@ -160,25 +161,25 @@ $$
 \end{aligned}
 $$
 
-In this case, the lower bound will be $(\frac{2^n-2}{2^n-1} - 1)$ and the upper bound will be $(\frac{2^n-2}{2^n-1} + \frac{2^n-2}{2^s})$. The left border is as close to a whole number as possible, and the size of the whole range is the second largest possible. And here is the punchline: if $s \ge n$, then the only integer contained in this range is $1$, and so the algorithm will always return it.
+이 경우, 하한은 $\left(\frac{2^n - 2}{2^n - 1} - 1\right)$이고, 상한은 $\left(\frac{2^n - 2}{2^n - 1} + \frac{2^n - 2}{2^s}\right)$입니다. 하한은 0에 아주 가까운 음수이며, 전체 구간의 크기도 가능한 값 중 두 번째로 큽니다. 그리고 중요한 포인트(punchline) 는 다음과 같습니다. 만약 $s \ge n$이라면, 이 범위에 포함되는 정수는 오직 1 하나뿐이며, 따라서 알고리즘은 항상 1을 반환하게 됩니다.
 
-### Lemire Reduction
+### Lemire 감법
 
-Barrett reduction is a bit complicated, and also generates a length instruction sequence for modulo because it is computed indirectly. There is a new ([2019](https://arxiv.org/pdf/1902.01961.pdf)) method, which is simpler and actually faster for modulo in some cases. It doesn't have a conventional name yet, but I am going to refer to it as [Lemire](https://lemire.me/blog/) reduction.
+Barrett 감법은 다소 복잡하며, 나머지를 간접적으로 계산하기 때문에 길고 복잡한 명령어 시퀀스를 생성합니다. 하지만 [2019](https://arxiv.org/pdf/1902.01961.pdf)년에 등장한 새로운 방법은 경우에 따라 더 단순하고 더 빠르게 나머지를 계산할 수 있습니다. 이 기법은 아직 널리 알려진 이름은 없지만, 여기서는 [Lemire](https://lemire.me/blog/) 감법이라 부르겠습니다.
 
-Here is the main idea. Consider the floating-point representation of some integer fraction:
+핵심 아이디어를 논하기 위해 정수 분수의 부동 소수점 표현을 생각해 봅시다.
 
 $$
 \frac{179}{6} = 11101.1101010101\ldots = 29\tfrac{5}{6} \approx 29.83
 $$
 
-How can we "dissect" it to get the parts we need?
+이 값을 원하는 부분으로 어떻게 나눌 수 있을까요?
 
-- To get the integer part (29), we can just floor or truncate it before the dot.
-- To get the fractional part (⅚), we can just take what is after the dots.
-- To get the remainder (5), we can multiply the fractional part by the divisor.
+- 정수 부분 29를 얻기 위해, 소수점 앞을 내림하거나 절삭하면 됩니다.
+- 소수 부분 ⅚을 얻기 위해, 소수점 뒤의 값을 취하면 됩니다.
+- 나머지 5를 얻기 위해, 소수 부분에 나누는 수 $y$를 곱해서 구할 수 있습니다.
 
-Now, for 32-bit integers, we can set $s = 64$ and look at the computation that we do in the multiply-and-shift scheme:
+이제 32비트 정수에 대해 생각해 봅시다. $s = 64$로 설정하고, 곱셈-시프트 방식의 계산 과정을 보겠습니다.
 
 $$
   \lfloor x / y \rfloor
@@ -186,15 +187,15 @@ $$
 = \Bigl \lfloor \frac{x \cdot \lceil  2^s /y \rceil}{2^s} \Bigr \rfloor
 $$
 
-What we really do here is we multiply $x$ by a floating-point constant ($x \cdot m$) and then truncate the result $(\lfloor \frac{\cdot}{2^s} \rfloor)$.
+여기서 실제로 하는 일은 $x$에 부동 소수점 상수 $m$을 곱하고, 결과를 $2^s$로 나눈 뒤 내림 처리하는 것입니다. 
 
-What if we took not the highest bits but the lowest? This would correspond to the fractional part — and if we multiply it back by $y$ and truncate the result, this will be exactly the remainder:
+그런데 여기서 높은 비트가 아니라 낮은 비트를 취하면 어떻게 될까요? 이 부분은 곧 소수 부분에 해당합니다. 이 값을 다시 $y$에 곱하고 내림 처리하면, 정확한 나머지를 얻을 수 있습니다.
 
 $$
 r = \Bigl \lfloor \frac{ (x \cdot \lceil  2^s /y \rceil \bmod 2^s) \cdot y }{2^s} \Bigr \rfloor
 $$
 
-This works perfectly because what we do here can be interpreted as just three chained floating-point multiplications with the total relative error of $O(\epsilon)$. Since $\epsilon = O(\frac{1}{2^s})$ and $s = 2n$, the error will always be less than one, and hence the result will be exact.
+이 방식은 정확하게 동작합니다. 왜냐하면 전체 과정은 상대 오차가 $O(\epsilon)$인 세 번의 부동 소수점 곱셈으로 해석될 수 있기 때문입니다. $\epsilon = O(\frac{1}{2^s})$이고, $s = 2n$이므로, 오차는 항상 1미만이며, 따라서 결과는 정확한 값을 반환합니다.
 
 ```c++
 uint32_t y;
@@ -211,7 +212,7 @@ uint32_t div(uint32_t x) {
 }
 ```
 
-We can also check divisibility of $x$ by $y$ with just one multiplication using the fact that the remainder of division is zero if and only if the fractional part (the lower 64 bits of $m \cdot x$) does not exceed $m$ (otherwise, it would become a nonzero number when multiplied back by $y$ and right-shifted by 64).
+또한 $x$를 $y$로 나누어 떨어지는지를 확인할 때도, 곱셈 한 번으로 판단할 수 있습니다. 나머지가 0이려면 소수 부분(즉, $m \cdot x$의 하위 64비트)이 $m$을 넘지 않아야 하며, 이를 다시 곱하고 시프트 했을 때 0이 되기 때문입니다.
 
 ```c++
 bool is_divisible(uint32_t x) {
@@ -219,12 +220,12 @@ bool is_divisible(uint32_t x) {
 }
 ```
 
-The only downside of this method is that it needs integer types four times the original size to perform the multiplication, while other reduction methods can work with just the double.
+이 방법의 유일한 단점은, 곱셈을 위해 원래 정수 크기의 4배에 해당하는 정수 타입이 필요하다는 것입니다. 반면 다른 감법 기법들은 보통 2배 크기의 정수 타입만으로 충분합니다.
 
-There is also a way to compute 64x64 modulo by carefully manipulating the halves of intermediate results; the implementation is left as an exercise to the reader.
+64×64 비트 나머지 연산도 유사한 방식으로 중간 결과의 상·하위 비트를 조작하여 구현할 수 있으며, 그 구현은 독자에게 맡기겠습니다.
 
-### Further Reading
+### 읽을 거리
 
-Check out [libdivide](https://github.com/ridiculousfish/libdivide) and [GMP](https://gmplib.org/) for more general implementations of optimized integer division.
+더 일반적인 최적화된 정수 나눗셈 구현체는 [libdivide](https://github.com/ridiculousfish/libdivide)와 [GMP](https://gmplib.org/)를 참고해 보세요.
 
-It is also worth reading [Hacker's Delight](https://www.amazon.com/Hackers-Delight-2nd-Henry-Warren/dp/0321842685), which has a whole chapter dedicated to integer division.
+정수 나눗셈에 대한 전체 내용을 다룬 [Hacker's Delight](https://www.amazon.com/Hackers-Delight-2nd-Henry-Warren/dp/0321842685)도 유익한 자료입니다.
