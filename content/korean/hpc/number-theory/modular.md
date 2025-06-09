@@ -17,27 +17,27 @@ And the beautiful thing about it is that remainders are small and cyclic. Think 
 
 -->
 
-Computers usually store time as the number of seconds that have passed since the 1st of January, 1970 — the start of the "Unix era" — and use these timestamps in all computations that have to do with time.
+컴퓨터는 일반적으로 시간을 1970년 1월 1일을 기준으로 지난 시간을 초 단위로 저장합니다. 이 날짜는 유닉스 시대의 시작으로 간주되며, 시간과 관련된 모든 계산에서 이러한 타임스탬프를 사용합니다.
 
-We humans also keep track of time relative to some point in the past, which usually has a political or religious significance. For example, at the moment of writing, approximately 63882260594 seconds have passed since 1 AD — [6th century Eastern Roman monks' best estimate](https://en.wikipedia.org/wiki/Anno_Domini) of the day Jesus Christ was born.
+우리 인간도 과거의 특정 시점을 기준으로 시간을 계산합니다. 다만 그 기준점은 종종 정치적 혹은 종교적인 의미를 지니고 있습니다. 예를 들어, 이 글이 작성된 시점을 기준으로 하면 서기 1년 이후 약 63,882,260,594초가 흘렀습니다. 이 기준은 예수 그리스도의 탄생일에 대한 [6세기 동로마 제국 수도사들의 추정치](https://en.wikipedia.org/wiki/Anno_Domini)에 근거한 것입니다.
 
-But unlike computers, we do not always need *all* that information. Depending on the task at hand, the relevant part may be that it's 2 pm right now, and it's time to go to dinner; or that it's Thursday, and so Subway's sub of the day is an Italian BMT. Instead of the whole timestamp, we use its *remainder* containing just the information we need: it is much easier to deal with 1- or 2-digit numbers than 11-digit ones.
+하지만 컴퓨터와는 달리, 인간은 항상 모든 시간 정보를 필요로 하지는 않습니다. 어떤 일을 하고 있느냐에 따라, 지금이 오후 2시라는 정보만으로도 '저녁을 먹을 시간'이라는 판단이 가능하며, 혹은 오늘이 목요일이기 때문에 '서브웨이 오늘의 메뉴가 이탈리안 BMT'라는 것이 중요할 수 있습니다. 이런 경우 우리는 전체 타임스탬프 대신, 필요한 정보만 담긴 나머지 값(remainder)를 사용합니다. 11자리 숫자보다 1~2자리 숫자가 훨씬 다루기 쉽기 때문입니다.
 
-**Problem.** Today is Thursday. What day of the week will be exactly in a year?
+문제. 오늘이 목요일이라면 정확히 1년 후에는 무슨 요일일까요?
 
-If we enumerate each day of the week, starting with Monday, from $0$ to $6$ inclusive, Thursday gets number $3$. To find out what day it is going to be in a year from now, we need to add $365$ to it and then reduce modulo $7$. Conveniently, $365 \bmod 7 = 1$, so we know that it will be Friday unless it is a leap year (in which case it will be Saturday).
+요일을 월요일부터 $0$으로 시작해서 $6$ 일요일까지 차례대로 번호를 매긴다고 해봅시다. 이 방식에 따르면 목요일은 $3$ 입니다. 1년 후의 요일을 구하려면 $3 + 365$를 한 뒤 이를 $7$로 나눈 나머지를 구하면 됩니다. 편리하게도 $365 \bmod7 = 1$이므로, $3 + 1 = 4$, 즉 금요일이 됩니다. 단, 윤년이라면 토요일이 되겠죠.
 
-### Residues
+### 나머지
 
-**Definition.** Two integers $a$ and $b$ are said to be *congruent* modulo $m$ if $m$ divides their difference:
+정의. 두 정수 $a$와 $b$에 대해, 만약 $a - b$가 어떤 정수 $m$으로 나누어 떨어진다면, 우리는 $a$와 $b$가 모듈러 $m$에 대해 합동(congruent)이라고 말합니다.
 
 $$
 m \mid (a - b) \; \Longleftrightarrow \; a \equiv b \pmod m
 $$
 
-For example, the 42nd day of the year is the same weekday as the 161st since $(161 - 42) = 119 = 17 \times 7$.
+예를 들어, 매년 42번째 날은 161번째 날과 같은 요일입니다. 왜냐하면 $(161 - 42) = 119 = 17 \times 7$이기 때문입니다.
 
-Congruence modulo $m$ is an equivalence relation that splits all integers into equivalence classes called *residues*. Each residue class modulo $m$ may be represented by any one of its members — although we commonly use the smallest nonnegative integer of that class (equal to the remainder $x \bmod m$ for all nonnegative $x$).
+모듈러 $m$에 대한 합동은 동치 관계이며, 모든 정수를 동치류(residue class)라 불리는 집합으로 나눕니다. 각 동치류는 그 안의 임의의 원소로 대표될 수 있지만, 일반적으로는 가장 작은 음이 아닌 정수를 대푯값으로 사용합니다. 즉, 모든 음이 아닌 $x$에 대해 $x \bmod m$입니다.
 
 <!--
 
@@ -49,53 +49,53 @@ Here are a few example of how this can be useful.
 
 -->
 
-*Modular arithmetic* studies these sets of residues, which are fundamental for number theory.
+모듈러 연산은 이러한 나머지 집합들을 연구하는 분야이며, 이는 수 이론의 근간입니다.
 
-**Problem.** Our "week" now consists of $m$ days, and our year consists of $a$ days (no leap years). How many distinct days of the week there will be among one, two, three and so on whole years from now?
+문제. "한 주"를 $m$일로, "1년"을 $a$일로 가정하겠습니다. 윤년은 고려하지 않겠습니다. 그렇다면 1년 후, 2년후, 3년후... 이런식으로 시간이 흐를 때, 몇 개의 서로 다른 요일이 존재할 수 있을까요?
 
-For simplicity, assume that today is Monday, so that the initial day number $d_0$ is zero, and after each year, it changes to
+간단히 하기 위해, 오늘이 월요일이라고 가정합시다. 그러면 초기 요일 번호 $d_0$가 0이고, 매년마다 다음과 같이 요일이 바뀝니다.
 
 $$
 d_{k + 1} = (d_k + a) \bmod m
 $$
 
-After $k$ years, it will be
+따라서, $k$년 후의 요일은 다음과 같습니다.
 
 $$
 d_k = k \cdot a \bmod m
 $$
 
-Since there are only $m$ days in a week, at some point, it will be Monday again, and the sequence of day numbers is going to cycle. The number of distinct days is the length of this cycle, so we need to find the smallest $k$ such that
+즉, 요일 번호는 순환하게 되며, 서로 다른 요일의 개수는 이 순환 주기의 길이와 같습니다. 따라서, 다음 식을 만족하는 가장 작은 정수 $k$을 찾는 것이 이 문제의 핵심입니다.
 
 $$
 k \cdot a \equiv 0 \pmod m
 $$
 
-First of all, if $a \equiv 0$, it will be eternal Monday. Now, assuming the non-trivial case of $a \not \equiv 0$:
+가장 먼저, $a \equiv 0$이면, 요일은 매년 변하지 않고 영원히 월요일이 됩니다. 지금은 $a \not \equiv 0$인 경우를 살펴보겠습니다.
 
-- For a seven-day week, $m = 7$ is prime. There is no $k$ smaller than $m$ such that $k \cdot a$ is divisible by $m$ because $m$ can not be decomposed in such a product by the definition of primality. So, if $m$ is prime, we will cycle through all of $m$ weekdays.
-- If $m$ is not prime, but $a$ is *coprime* with it (that is, $a$ and $m$ do not have common divisors), then the answer is still $m$ for the same reason: the divisors of $a$ do not help in zeroing out the product any faster.
-- If $a$ and $m$ share some divisors, then it is only possible to get residues that are also divisible by them. For example, if the week is $m = 10$ days long, and the year has $a = 42$ or any other even number of days, then we will cycle through all even day numbers, and if the number of days is a multiple of $5$, then we will only oscillate between $0$ and $5$. Otherwise, we will go through all the $10$ remainders.
+- 만약 $m = 7$처럼 주 길이가 소수일 경우, $k \cdot a$가 $m$으로 나누어 떨어질 수 있는 $k$는 $m$보다 작을 수 없습니다. 소수는 그보다 작은 수로 곱해 만들어질 수 없기 때문입니다. 따라서, 이런 경우에는 모든 요일을 순환하게 됩니다.
+- 만약 $m$이 소수가 아니더라도, $a$와 서로소라면, 동일한 이유로 역시 모든 요일을 순환하게 됩니다. $a$를 나누는 인자들은 순환을 더 빨리 끝내는 데 도움이 되지 않습니다.
+- 만약 $a$와 $m$이 공약수를 갖는다면, 생성되는 요일은 이 공약수로 나누어 떨어지는 값들로 제한됩니다. 예를 들어, 주 길이가 $m = 10$이고, 한 해가 $a = 42$일이라면, 생성되는 요일은 $0, 2, 4, 6, 8$처럼 짝수 요일만 돌게 됩니다. 만약 $a$가 $5$의 배수라면, 생성되는 요일은 $0$과 $5$만이 될 수 있습니다. 반면, $a$와 $m$이 서로소라면, 모든 요일을 순환하게 됩니다.
 
-Therefore, in general, the answer is $\frac{m}{\gcd(a, m)}$, where $\gcd(a, m)$ is the [greatest common divisor](/hpc/algorithms/gcd/) of $a$ and $m$.
+따라서, 일반적으로 서로 다른 요일의 개수는 $\frac{m}{\gcd(a, m)}$입니다. 여기서 $\gcd(a, m)$은 $a$와 $m$의 [최대공약수](/hpc/algorithms/gcd/)입니다.
 
-### Fermat's Theorem
+### Fermat 정리
 
-Now, consider what happens if, instead of adding a number $a$, we repeatedly multiply by it, writing out a sequence of
+이번에는 숫자 $a$를 반복해서 더하는 대신, 반복해서 곱한다고 가정해 봅시다. 즉, 다음과 같은 수열을 살펴보는 것입니다.
 
 $$
 d_n = a^n \bmod m
 $$
 
-Again, since there is a finite number of residues, there is going to be a cycle. But what will its length be? Turns out, if $m$ is prime, it will span all $(m - 1)$ non-zero residues.
+역시 가능한 나머지 값은 유한하므로 순환이 발생합니다. 그런데 이번에는 그 순환의 길이가 어떻게 될까요? $m$이 소수일 경우, 이 수열은 0이 아닌 모든 나머지 $(m-1)$개를 전부 순회하게 됩니다.
 
-**Theorem.** For any $a$ and a prime $p$:
+정리. 임의의 정수 $a$와 소수 $p$에 대해 다음이 성립합니다.
 
 $$
 a^p \equiv a \pmod p
 $$
 
-**Proof**. Let $P(x_1, x_2, \ldots, x_n) = \frac{k}{\prod (x_i!)}$ be the *multinomial coefficient:* the number of times the element $a_1^{x_1} a_2^{x_2} \ldots a_n^{x_n}$ appears after the expansion of $(a_1 + a_2 + \ldots + a_n)^k$. Then:
+증명. $P(x_1, x_2, \ldots, x_n) = \frac{k}{\prod (x_i!)}$를 다항계수라 합시다. 이는 $(a_1 + a_2 + \ldots + a_n)^k$를 전개했을 때 항 $a_1^{x_1} a_2^{x_2} \ldots a_n^{x_n}$가 나타나는 횟수를 의미합니다. 이제 다음과 같이 생각할 수 있습니다.
 
 $$
 \begin{aligned}
@@ -107,17 +107,17 @@ a^p &= (\underbrace{1+1+\ldots+1+1}_\text{$a$ times})^p &
 \end{aligned}
 $$
 
-Note that this is only true for prime $p$. We can use this fact to test whether a given number is prime faster than by factoring it: we can pick a number $a$ at random, calculate $a^{p} \bmod p$, and check whether it is equal to $a$ or not.
+이 성질은 $p$가 소수일 때만 성립한다는 점에 유의하세요. 이 사실을 이용하면 어떤 수가 소수인지 판별하는 데에, 직접 소인수분해를 하는 것보다 더 빠르게 검증할 수 있습니다. 무작위로 어떤 수 $a$를 선택하고, $a^{p} \bmod p$를 계산한 다음, 그것이 $a$과 같은지를 확인하는 방식입니다.
 
-This is called *Fermat primality test*, and it is probabilistic — only returning either "no" or "maybe" — since it may be that $a^p$ just happened to be equal to $a$ despite $p$ being composite, in which case you need to repeat the test with a different random $a$ until you are satisfied with the false positive probability.
+이는 Fermat의 소수 판별법이라 불리며, 확률적인 방식입니다. 왜냐하면 $p$가 합성수임에도 불구하고 우연히 $a^p \equiv a \pmod p$가 성립할 수 있기 때문입니다. 이 경우 거짓일 확률을 충분히 낮출 때까지 다른 $a$에 대해 반복 테스트해야 합니다.
 
-Primality tests are commonly used to generate large primes (for cryptographic purposes). There are roughly $\frac{n}{\ln n}$ primes among the first $n$ numbers (a fact that we are not going to prove), and they are distributed more or less evenly. One can just pick a random number from the required range, perform a primality check, and repeat until a prime is found, performing $O(\ln n)$ trials on average.
+소수 판별법은 주로 큰 소수를 생성할 때 사용되며, 이는 암호학에서 중요한 역할을 합니다. 첫 $n$개의 수 중 약 $\frac{n}{\ln n}$개가 소수이며(이는 여기서 증명하지는 않겠습니다), 대체로 고르게 분포합니다. 따라서 원하는 범위에서 임의의 수를 선택해 소수 판별을 하고, 소수가 나올 때까지 이를 반복하면 됩니다. 평균적으로 $O(\ln n)$회 정도의 시도로 소수를 찾을 수 있습니다.
 
-An extremely bad input to the Fermat test is the [Carmichael numbers](https://en.wikipedia.org/wiki/Carmichael_number), which are composite numbers $n$ that satisfy $a^{n-1} \equiv 1 \pmod n$ for all relatively prime $a$. But these are [rare](https://oeis.org/A002997), and the chance of randomly bumping into it is low.
+Fermat 판별법에서의 특히 나쁜 입력은 [Carmichael 수](https://en.wikipedia.org/wiki/Carmichael_number)입니다. 이는 합성수이면서도, $n$과 서로소인 모든 $a$에 대해 $a^{n-1} \equiv 1 \pmod n$을 만족하는 수입니다. 하지만 이러한 수는 매우 [드뭅니다](https://oeis.org/A002997). 따라서, 무작위로 이를 마주칠 확률은 낮습니다.
 
-### Modular Division
+### 모듈러 나눗셈
 
-Implementing most "normal" arithmetic operations with residues is straightforward. You only need to take care of integer overflows and remember to take modulo:
+나머지 연산에서 대부분의 일반적인 산술 연산은 비교적 쉽게 구현할 수 있습니다. 정수 오버플로우를 주의하고, 연산 결과에 모듈러 연산을 적용하기만 하면 됩니다.
 
 ```c++
 c = (a + b) % m;
@@ -125,16 +125,17 @@ c = (a - b + m) % m;
 c = a * b % m;
 ```
 
-But there is an issue with division: we can't just bluntly divide two residues. For example, $\frac{8}{2} = 4$, but
+하지만 나눗셈에는 문제가 있습니다. 나머지들끼리 단순히 나누는 방식으로는 올바른 결과를 얻을 수 없습니다. 예를 들어, $\frac{8}{2} = 4$이지만
 
 $$
 \frac{8 \bmod 5}{2 \bmod 5} = \frac{3}{2} \neq 4
 $$
 
-To perform modular division, we need to find an element that "acts" like the reciprocal $\frac{1}{a} = a^{-1}$ and multiply by it. This element is called a *modular multiplicative inverse*, and Fermat's theorem can help us find it when the modulo $p$ is a prime. When we divide its equivalence twice by $a$, we get:
+모듈러 나눗셈을 하려면, $\frac{1}{a} = a^{-1}$처럼 작용하는 값을 찾아 곱해주어야 합니다. 이 값을 모듈러 역수(modular multiplicative inverse)라고 하며, 모듈러 $p$가 소수일 경우 Fermat의 소정리를 이용해 이를 구할 수 있습니다. Fermat의 소정리에 따르면, 양변을 $a$로 나누면 다음과 같은 관계가 됩니다.
 
 $$
 a^p \equiv a \implies a^{p-1} \equiv 1 \implies a^{p-2} \equiv a^{-1}
 $$
 
-Therefore, $a^{p-2}$ is like $a^{-1}$ for the purposes of multiplication, which is what we need from a modular inverse of $a$.
+즉, $p$가 소수일 때 $a^{p-2}$는 $a$의 모듈러 역수 역할을 하며, 이를 통해 나눗셈 대신 곱셈으로 모듈러 나눗셈을 수행할 수 있습니다.
+

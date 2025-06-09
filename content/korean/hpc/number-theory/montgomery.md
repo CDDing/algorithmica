@@ -4,9 +4,9 @@ weight: 4
 published: true
 ---
 
-Unsurprisingly, a large fraction of computation in [modular arithmetic](../modular) is often spent on calculating the modulo operation, which is as slow as [general integer division](/hpc/arithmetic/division/) and typically takes 15-20 cycles, depending on the operand size.
+놀랍지는 않은 사실로, [모듈러 연산](../modular)중 상당 부분은 나머지 연산에 소모됩니다. 이 연산은 [일반적인 정수 나눗셈](/hpc/arithmetic/division/)만큼 느리며, 피연산자의 크기에 따라 다르지만 일반적으로 15~20 사이클이 걸립니다.
 
-The best way to deal this nuisance is to avoid modulo operation altogether, delaying or replacing it with [predication](/hpc/pipelining/branchless), which can be done, for example, when calculating modular sums:
+이러한 성능 저하를 피하는 가장 좋은 방법은 나머지 연산을 아예 피하거나, [분기 없는 조건 처리(predication)](/hpc/pipelining/branchless)로 대체하거나 지연시키는 것입니다. 예를 들어, 모듈러 합을 계산할 때 다음과 같은 방식으로 구현할 수 있습니다.
 
 ```cpp
 const int M = 1e9 + 7;
@@ -37,67 +37,67 @@ int faster_sum(int *a, int n) {
 }
 ```
 
-However, sometimes you only have a chain of modular multiplications, and there is no good way to eel out of computing the remainder of the division — other than with the [integer division tricks](../hpc/arithmetic/division/) requiring a constant modulo and some precomputation.
+하지만 때로는 모듈러 곱셈만 반복적으로 수행되는 경우가 있으며, 이런 경우에는 [정수 나눗셈 트릭](../hpc/arithmetic/division/)들을 제외하고는 나눗셈의 나머지를 계산하는 과정을 피할 좋은 방법이 없습니다. 이 트릭들은 일정한 상수 모듈러 값과 몇 가지 사전 계산을 필요로 합니다.
 
-But there is another technique designed specifically for modular arithmetic, called *Montgomery multiplication*.
+하지만 Montgomery 곱셈이라는 모듈러 연산을 위해 특별히 설계된 또다른 기법이 존재합니다.
 
-### Montgomery Space
+### Montgomery 공간
 
-Montgomery multiplication works by first transforming the multipliers into *Montgomery space*, where modular multiplication can be performed cheaply, and then transforming them back when their actual values are needed. Unlike general integer division methods, Montgomery multiplication is not efficient for performing just one modular reduction and only becomes worthwhile when there is a chain of modular operations.
+Montgomery 곱셈은 곱셈에 사용되는 수들을 먼저 Montgomery 공간으로 변형한 뒤, 그 공간 내에서 모듈러 곱셈을 빠르게 수행하고, 최종적으로 필요한 시점에 실제 값으로 다시 변환하는 방식입니다. 일반적인 정수 나눗셈 기법들과는 달리, Montgomery 곱셈은 단 한번의 모듈러 연산만 수행할 때에는 비효율적이며, 여러 번의 모듈러 연산이 이어질 때에만 사용할 가치가 있습니다.
 
-The space is defined by the modulo $n$ and a positive integer $r \ge n$ coprime to $n$. The algorithm involves modulo and division by $r$, so in practice, $r$ is chosen to be $2^{32}$ or $2^{64}$, so that these operations can be done with a right-shift and a bitwise AND respectively.
+이 Montgomery 공간은 모듈러 값 $n$과양의 정수 $r \ge n$으로 정의되며, 이때 $r$은 $n$과 서로소여야만 합니다. 알고리즘은 $r$에 대한 나눗셈과 모듈러 연산을 포함하므로, 실제로는 $r$을 $2^{32}$또는 $2^{64}$같은 값으로 설정하여 이러한 연산을 각각 비트 오른쪽 시프트 및 비트 AND 연산으로 대체할 수 있게 합니다.
 
 <!-- Therefore $n$ needs to be an odd number so that every power of $2$ will be coprime to $n$. And if it is not, we can make it odd (?). -->
 
-**Definition.** The *representative* $\bar x$ of a number $x$ in the Montgomery space is defined as
+어떤 수 $x$의 Montgomery 공간에서의 표현 $\bar{x}$는 다음과 같이 정의됩니다.
 
 $$
 \bar{x} = x \cdot r \bmod n
 $$
 
-Computing this transformation involves a multiplication and a modulo — an expensive operation that we wanted to optimize away in the first place — which is why we only use this method when the overhead of transforming numbers to and from the Montgomery space is worth it and not for general modular multiplication.
+이 변환은 곱셈과 모듈러 연산을 필요로 하며, 이는 우리가 처음에 피하고자 했던 비용이 큰 연산입니다. 따라서 Montgomery 곱셈은 이러한 변환 및 복원 과정의 오버헤드를 감수할 가치가 있을 때, 즉 같은 모듈러 연산이 여러 번 필요한 상황에서만 유용합니다.
 
 <!-- Note that the transformation is actually such a multiplication that we want to optimize, so it is still an expensive operation. However, we will only need to transform a number into the space once, perform as many operations as we want efficiently in that space and at the end transform the final result back, which should be profitable if we are doing lots of operations modulo $n$. -->
 
-Inside the Montgomery space, addition, substraction, and checking for equality is performed as usual:
+Montgomery 공간 내에서는 덧셈, 뺄셈, 비교는 일반적인 방식으로 수행할 수 있습니다.
 
 $$
 x \cdot r + y \cdot r \equiv (x + y) \cdot r \bmod n
 $$
 
-However, this is not the case for multiplication. Denoting multiplication in the Montgomery space as $*$ and the "normal" multiplication as $\cdot$, we expect the result to be:
+하지만 곱셈은 다릅니다. Montgomery 공간에서의 곱셈을 $*$로, 일반적인 곱셈을 $\cdot$로 표기하면, 결과는 다음과 같습니다.
 
 $$
 \bar{x} * \bar{y} = \overline{x \cdot y} = (x \cdot y) \cdot r \bmod n
 $$
 
-But the normal multiplication in the Montgomery space yields:
+하지만 실제로 Montgomery 표현끼리 곱하면 다음과 같은 결과가 나옵니다.
 
 $$
 \bar{x} \cdot \bar{y} = (x \cdot y) \cdot r \cdot r \bmod n
 $$
 
-Therefore, the multiplication in the Montgomery space is defined as
+따라서, Montgomery 공간에서의 곱셈은 다음과 같이 정의되어야 합니다.
 
 $$
 \bar{x} * \bar{y} = \bar{x} \cdot \bar{y} \cdot r^{-1} \bmod n
 $$
 
-This means that, after we normally multiply two numbers in the Montgomery space, we need to *reduce* the result by multiplying it by $r^{-1}$ and taking the modulo — and there is an efficent way to do this particular operation.
+즉, Montgomery 공간에서 두 수를 곱한 후에는 결과에 $r^{-1}$을 곱하고 $n$으로 모듈러를 취하는 감산 과정이 필요하며, 이 연산을 효율적으로 수행할 수 있는 알고리즘이 존재합니다.
 
-### Montgomery reduction
+### Montgomery 감법
 
-Assume that $r=2^{32}$, the modulo $n$ is 32-bit, and the number $x$ we need to reduce is 64-bit (the product of two 32-bit numbers). Our goal is to calculate $y = x \cdot r^{-1} \bmod n$. 
+$r=2^{32}$이고 모듈러 $n$은 32비트, 그리고 감소시켜야 할 숫자 $x$가 64비트라고 가정합시다(두 32비트의 곱이라 가정). 우리의 목표는 $y = x \cdot r^{-1} \bmod n$을 계산하는 것입니다.
 
-Since $r$ is coprime with $n$, we know that there are two numbers $r^{-1}$ and $n^\prime$ in the $[0, n)$ range such that
+$r$이 $n$과 서로소이기 때문에, $[0, n)$ 범위에 다음과 같이 두 수 $r^{-1}$과 $n^\prime$가 존재하여 다음을 만족합니다.
 
 $$
 r \cdot r^{-1} + n \cdot n^\prime = 1
 $$
 
-and both $r^{-1}$ and $n^\prime$ can be computed, e.g., using the [extended Euclidean algorithm](../euclid-extended).
+이러한 값들은 [확장 유클리드 알고리즘](../euclid-extended)을 사용해 계산할 수 있습니다.
 
-Using this identity, we can express $r \cdot r^{-1}$ as $(1 - n \cdot n^\prime)$ and write $x \cdot r^{-1}$ as
+이 식을 통해 $r \cdot r^{-1}$을 $(1 - n \cdot n^\prime)$로 계산하고 $x \cdot r^{-1}$를 다음과 같이 정리할 수 있습니다.
 
 $$
 \begin{aligned}
@@ -109,33 +109,30 @@ x \cdot r^{-1} &= x \cdot r \cdot r^{-1} / r
 \end{aligned}
 $$
 
-Now, if we choose $k$ to be $\lfloor x \cdot n^\prime / r \rfloor$ (the upper 64 bits of the $x \cdot n^\prime$ product), it will cancel out, and $(k \cdot r - x \cdot n^{\prime})$ will simply be equal to $x \cdot n^{\prime} \bmod r$ (the lower 32 bits of $x \cdot n^\prime$), implying:
+이제 $\lfloor x \cdot n^\prime / r \rfloor$로 선택하면, $(k \cdot r - x \cdot n^{\prime})$는 $x \cdot n^{\prime} \bmod r$와 같아지고, 다음이 성립합니다.
 
 $$
 x \cdot r^{-1} \equiv (x - x \cdot n^{\prime} \bmod r \cdot n) / r
 $$
 
-The algorithm itself just evaluates this formula, performing two multiplications to calculate $q = x \cdot n^{\prime} \bmod r$ and $m = q \cdot n$, and then subtracts it from $x$ and right-shifts the result to divide it by $r$.
-
-The only remaining thing to handle is that the result may not be in the $[0, n)$ range; but since
+알고리즘은 이 공식을 직접 계산하며 두 번의 곱셈을 통해 $q = x \cdot n^{\prime} \bmod r$와 $m = q \cdot n$를 구한 뒤, $x-m$을 계산하여 $r$로 나눈 다음, 결과가 음수인지 확인합니다.
 
 $$
 x < n \cdot n < r \cdot n \implies x / r < n
 $$
 
-and
 
 $$
 m = q \cdot n < r \cdot n \implies m / r < n
 $$
 
-it is guaranteed that
+따라서 다음 범위가 보장됩니다.
 
 $$
 -n < (x - m) / r < n
 $$
 
-Therefore, we can simply check if the result is negative and in that case, add $n$ to it, giving the following algorithm:
+결과가 음수일 경우 $n$을 더해 $[0,n)$ 범위로 조정합니다.
 
 ```c++
 typedef __uint32_t u32;
@@ -151,7 +148,7 @@ u32 reduce(u64 x) {
 }
 ```
 
-This last check is relatively cheap, but it is still on the critical path. If we are fine with the result being in the $[0, 2 \cdot n - 2]$ range instead of $[0, n)$, we can remove it and add $n$ to the result unconditionally:
+결과가 반드시 $[0,n)$에 있을 필요가 없다면 조건 분기를 제거하고 항상 $n$을 더할 수 있습니다.
 
 ```c++
 u32 reduce(u64 x) {
@@ -162,13 +159,13 @@ u32 reduce(u64 x) {
 }
 ```
 
-We can also move the `>> 32` operation one step earlier in the computation graph and compute $\lfloor x / r \rfloor - \lfloor m / r \rfloor$ instead of $(x - m) / r$. This is correct because the lower 32 bits of $x$ and $m$ are equal anyway since
+`>> 32` 연산을 계산 그래프에서 한 단계 앞당기고, $(x-m)/r$ 대신 $\lfloor x / r \rfloor - \lfloor m / r \rfloor$을 계산할 수 있습니다. 이는 $x$와 $m$의 하위 32비트가 항상 같기 때문에 올바른 결과를 제공합니다.
 
 $$
 m = x \cdot n^\prime \cdot n \equiv x \pmod r
 $$
 
-But why would we voluntarily choose to perfom two right-shifts instead of just one? This is beneficial because for `((u64) q * n) >> 32` we need to do a 32-by-32 multiplication and take the upper 32 bits of the result (which the x86 `mul` instruction [already writes](../hpc/arithmetic/integer/#128-bit-integers) in a separate register, so it doesn't cost anything), and the other right-shift `x >> 32` is not on the critical path.
+하지만 왜 단순히 오른쪽 쉬프트 연산을 한 번만 수행할 수 있는데도, 두 번 수행하는 방식을 선택할까요? 이는 성능상의 이점이 있기 때문입니다.`((u64) q * n) >> 32`에서는 32비트 정수끼리의 곱셈 결과에서 상위 32비트를 취하는 연산이 필요한데, 이는 x86의 `mul` 명령어가 이미 별도의 레지스터에 상위 비트를 저장해주기 때문에 별도의 비용이 들지 않습니다. 또한, `x >> 32` 연산은 성능의 병목 지점에 포함되지 않기 때문에 부담이 되지 않습니다.
 
 ```c++
 u32 reduce(u64 x) {
@@ -178,7 +175,7 @@ u32 reduce(u64 x) {
 }
 ```
 
-One of the main advantages of Montgomery multiplication over other modular reduction methods is that it doesn't require very large data types: it only needs a $r \times r$ multiplication that extracts the lower and higher $r$ bits of the result, which [has special support](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,5055,5012,5055&techs=AVX,AVX2&text=mul) on most hardware also makes it easily generalizable to [SIMD](../hpc/simd/) and larger data types:
+Montgomery 곱셈이 다른 모듈러 감소 방식보다 가지는 주요 장점 중 하나는 매우 큰 정수형 타입을 요구하지 않는다는 점입니다. 오직 $r \times r$ 크기의 곱셈과, 그 결과의 상위 및 하위 $r$ 비트를 추출하는 연산만 필요합니다. 이러한 연산은 대부분의 하드웨어에서 [특수 지원](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=7395,7392,7269,4868,7269,7269,1820,1835,6385,5051,4909,4918,5051,7269,6423,7410,150,2138,1829,1944,3009,1029,7077,519,5183,4462,4490,1944,5055,5012,5055&techs=AVX,AVX2&text=mul)되며, [SIMD](../hpc/simd/)나 더 큰 데이터 타입으로도 쉽게 일반화할 수 있다는 장점이 있습니다.
 
 ```c++
 typedef __uint128_t u128;
@@ -190,19 +187,19 @@ u64 reduce(u128 x) const {
 }
 ```
 
-Note that a 128-by-64 modulo is not possible with general integer division tricks: the compiler [falls back](https://godbolt.org/z/fbEE4v4qr) to calling a slow [long arithmetic library function](https://github.com/llvm-mirror/compiler-rt/blob/69445f095c22aac2388f939bedebf224a6efcdaf/lib/builtins/udivmodti4.c#L22) to support it.
+일반적인 정수 나눗셈 기법으로는 128비트의 수를 64비트로 나누는 연산이 효율적으로 불가능하므로, [컴파일러](https://godbolt.org/z/fbEE4v4qr)는 [느린 긴 산술 라이브러리 함수](https://github.com/llvm-mirror/compiler-rt/blob/69445f095c22aac2388f939bedebf224a6efcdaf/lib/builtins/udivmodti4.c#L22)를 호출하게 됩니다.
 
-### Faster Inverse and Transform
+### 역 제곱근과 변환
 
-Montgomery multiplication itself is fast, but it requires some precomputation:
+Montgomery 곱셈 자체는 빠르지만, 몇 가지 사전 계산이 필요합니다.
 
-- inverting $n$ modulo $r$ to compute $n^\prime$,
-- transforming a number *to* the Montgomery space,
-- transforming a number *from* the Montgomery space.
+- $n^\prime$을 계산하기 위해 $n$ 모듈러의 역원을 구해야 합니다.
+- 숫자를 Montgomery 공간으로 변환해야 합니다.
+- 숫자를 Montgomery 공간에서 원래 공간으로 변환해야 합니다.
 
-The last operation is already efficiently performed with the `reduce` procedure we just implemented, but the first two can be slightly optimized.
+이 중 마지막 연산은 이미 우리가 구현한 `reduce` 함수를 통해 이미 효율적으로 처리되고 있지만, 앞의 두 과정은 조금 더 최적화할 수 있습니다.
 
-**Computing the inverse** $n^\prime = n^{-1} \bmod r$ can be done faster than with the extended Euclidean algorithm by taking advantage of the fact that $r$ is a power of two and using the following identity:
+역원 계산. $n^\prime = n^{-1} \bmod r$는 $r$이 2의 거듭제곱이라는 사실을 이용하면 확장 유클리드 알고리즘보다 더 빠르게 구할 수 있습니다. 아래의 항등식을 활용합니다.
 
 $$
 a \cdot x \equiv 1 \bmod 2^k
@@ -212,7 +209,7 @@ a \cdot x \cdot (2 - a \cdot x)
 1 \bmod 2^{2k}
 $$
 
-Proof:
+증명은 다음과 같습니다.
 
 $$
 \begin{aligned}
@@ -225,19 +222,19 @@ a \cdot x \cdot (2 - a \cdot x)
 \end{aligned}
 $$
 
-We can start with $x = 1$ as the inverse of $a$ modulo $2^1$ and apply this identity exactly $\log_2 r$ times, each time doubling the number of bits in the inverse — somewhat reminiscent of [the Newton's method](../hpc/arithmetic/newton/).
+처음에는 $a$의 $2^1$에 대한 모듈러 역원 $x = 1$로 시작하고, 이 항등식을 $\log_2 r$번 반복 적용함으로써 매번 정확히 두 배의 비트를 얻을 수 있습니다. 이 방식은 [Newton 기법](../hpc/arithmetic/newton/)과 유사한 점이 있습니다.
 
-**Transforming** a number into the Montgomery space can be done by multiplying it by $r$ and computing modulo [the usual way](../hpc/arithmetic/division/), but we can also take advantage of this relation:
+수를 Montgomery 공간으로 변환하는 것은 해당 숫자에 $r$을 곱하고 모듈러 연산을 수행하는 것입니다([기존 방식](../hpc/arithmetic/division/) 참고). 하지만 다음과 같은 관계를 이용하면 최적화를 도모할 수 있습니다.
 
 $$
 \bar{x} = x \cdot r \bmod n = x * r^2
 $$
 
-Transforming a number into the space is just a multiplication by $r^2$. Therefore, we can precompute $r^2 \bmod n$ and perform a multiplication and reduction instead — which may or may not be actually faster because multiplying a number by $r=2^{k}$ can be implemented with a left-shift, while multiplication by $r^2 \bmod n$ can not.
+숫자를 Montgomery 공간으로 변환하는 것은 $r^2$를 곱하는 것과 동일합니다. 따라서 $r^2 \bmod n$을 사전에 계산해 두면, 단순한 곱셈과 감소 연산으로 변환을 수행할 수 있습니다. 다만, 이것이 실제로 빠를지는 상황에 따라 달라질 수 있습니다. 왜냐하면 $r = 2^k$를 곱하는 것은 단순한 좌측 쉬프트로 구현할 수 있지만, $r^2 \bmod n$을 곱하는 연산은 시프트로 대체할 수 없기 때문입니다.
 
-### Complete Implementation
+### 완전한 구현
 
-It is convenient to wrap everything into a single `constexpr` structure:
+전부 `constexpr`로 감싸는 편이 편리합니다.
 
 ```c++
 struct Montgomery {
@@ -268,7 +265,7 @@ struct Montgomery {
 };
 ```
 
-To test its performance, we can plug Montgomery multiplication into the [binary exponentiation](../hpc/number-theory/exponentiation/):
+성능을 확인해보기 위해, Montgomery 곱셈을 [binary exponentiation](../hpc/number-theory/exponentiation/)에 적용해봅시다.
 
 ```c++
 constexpr Montgomery space(M);
@@ -288,6 +285,6 @@ int inverse(int _a) {
 }
 ```
 
-While vanilla binary exponentiation with a compiler-generated fast modulo trick requires ~170ns per `inverse` call, this implementation takes ~166ns, going down to ~158ns we omit `transform` and `reduce` (a reasonable use case is for `inverse` to be used as a subprocedure in a bigger modular computation). This is a small improvement, but Montgomery multiplication becomes much more advantageous for SIMD applications and larger data types.
+컴파일러가 자동으로 생성한 빠른 모듈러 연산을 사용하는 일반적인 이진 거듭제곱법은 `inverse` 호출당 약 170ns가 소요됩니다. 반면, 위와 같은 Montgomery 기반 구현은 약 166ns, `transform`과 `reduce`를 생략할 경우 약 158ns까지 줄어듭니다. (`inverse` 함수가 더 큰 모듈러 연산의 하위 절차로 사용되는 경우 생략이 가능합니다.) 비록 이 차이는 작지만, Montgomery 곱셈은 SIMD 애플리케이션이나 더 큰 정수 타입에서 훨씬 더 큰 성능 향상을 제공합니다.
 
-**Exercise.** Implement efficient *modular* [matix multiplication](/hpc/algorithms/matmul).
+연습문제로 효율적인 [모듈러 행렬곱](/hpc/algorithms/matmul)을 구현해보세요.

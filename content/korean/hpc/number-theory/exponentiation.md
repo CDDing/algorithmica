@@ -3,9 +3,10 @@ title: Binary Exponentiation
 weight: 2
 ---
 
-In modular arithmetic (and computational algebra in general), you often need to raise a number to the $n$-th power — to do [modular division](../modular/#modular-division), perform [primality tests](../modular/#fermats-theorem), or compute some combinatorial values — ­and you usually want to spend fewer than $\Theta(n)$ operations calculating it.
+모듈러 나눗셈을 수행하거나, 소수 판별, 혹은 조합 값을 계산해야할 때 등이 있습니다. 이때 보통은 $n$번 곱하는 방식처럼 $\Theta(n)$ 시간이 드는 계산은 피하고 싶어할 것입니다.
+[모듈러 나눗셈](../modular/#modular-division)을 수행하거나, [소수 판별](../modular/#fermats-theorem), 혹은 조합 값을 계산해야할 때 등이 있습니다. 이때 보통은 $n$번 곱하는 방식처럼 $\Theta(n)$ 시간이 드는 계산은 피하고 싶어할 것입니다.
 
-*Binary exponentiation*, also known as *exponentiation by squaring*, is a method that allows for computation of the $n$-th power using $O(\log n)$ multiplications, relying on the following observation:
+이진 거듭제곱법(Binary exponentiation)은 곱셈 횟수를 $O(\log n)$으로 줄이면서 $n$제곱을 계산할 수 있는 기법입니다. 이 방법은 다음과 같은 성질에 기반합니다.
 
 $$
 \begin{aligned}
@@ -14,7 +15,7 @@ $$
 \end{aligned}
 $$
 
-To compute $a^n$, we can recursively compute $a^{\lfloor n / 2 \rfloor}$, square it, and then optionally multiply by $a$ if $n$ is odd, corresponding to the following recurrence:
+즉, $a^n$을 계산할 때는 먼저 $a^{\lfloor n / 2 \rfloor}$을 재귀적으로 계산하고 제곱합니다. 그리고 $n$이 홀수일 경우 추가로 $a$를 한 번 더 곱해주면 됩니다. 이는 다음과 같은 재귀식으로 나타낼 수 있습니다.
 
 $$
 a^n = f(a, n) = \begin{cases}
@@ -24,11 +25,11 @@ a^n = f(a, n) = \begin{cases}
 \end{cases}
 $$
 
-Since $n$ is at least halved every two recursive transitions, the depth of this recurrence and the total number of multiplications will be at most $O(\log n)$.
+이 방식은 $n$이 재귀 호출마다 절반으로 줄어들기 때문에, 전체 재귀 깊이와 곱셈 횟수는 최대 $O(\log n)$에 불과합니다.
 
-### Recursive Implementation
+### 재귀 구현
 
-As we already have a recurrence, it is natural to implement the algorithm as a case matching recursive function:
+이미 재귀식을 가지고 있으므로, 이 알고리즘은 재귀 함수로 구현하는 것이 자연스럽습니다.
 
 ```c++
 const int M = 1e9 + 7; // modulo
@@ -46,7 +47,7 @@ u64 binpow(u64 a, u64 n) {
 }
 ```
 
-In our benchmark, we use $n = m - 2$ so that we compute the [multiplicative inverse](../modular/#modular-division) of $a$ modulo $m$:
+우리의 벤치마크에서는 $n = m - 2$를 사용하여 $a$에 대한 모듈러 $m$의 [곱셈 역원](../modular/#modular-division)을 계산합니다.
 
 ```c++
 u64 inverse(u64 a) {
@@ -54,21 +55,22 @@ u64 inverse(u64 a) {
 }
 ```
 
-We use $m = 10^9+7$, which is a modulo value commonly used in competitive programming to calculate checksums in combinatorial problems — because it is prime (allowing inverse via binary exponentiation), sufficiently large, not overflowing `int` in addition, not overflowing `long long` in multiplication, and easy to type as `1e9 + 7`.
+여기서 사용하는 $m = 10^9+7$은 조합 문제에서 체크섬 등을 계산할 때 경쟁 프로그래밍에서 널리 쓰이는 모듈러 값입니다. 그 이유는 소수이기 때문에 곱셈 역원을 이진 거듭제곱으로 계산할 수 있으며, 충분히 크고, `int` 범위를 넘지 않으며 곱셈을 해도 `long long`에서 오버플로우가 발생하지 않고, `1e9+7`처럼 간단히 입력할 수 있기 때문입니다.
 
-Since we use it as compile-time constant in the code, the compiler can optimize the modulo by [replacing it with multiplication](/hpc/arithmetic/division/) (even if it is not a compile-time constant, it is still cheaper to compute the magic constants by hand once and use them for fast reduction).
+또한 이 값을 코드에서 컴파일 타임 상수로 사용하면, 컴파일러는 [곱셈으로 나눗셈을 대체하는 방식](/hpc/arithmetic/division/)으로 모듈러 연산을 최적화할 수 있습니다. 비록 컴파일 타임 상수가 아니더라도, 한 번만 매직 상수를 계산해두고 빠르게 모듈러를 줄일 수 있기 때문에 여전히 효율적입니다.
 
-The execution path — and consequently the running time — depends on the value of $n$. For this particular $n$, the baseline implementation takes around 330ns per call. As recursion introduces some [overhead](/hpc/architecture/functions/), it makes sense to unroll the implementation into an iterative procedure.
 
-### Iterative Implementation
+이 알고리즘의 실행 경로와 실행 시간은 $n$의 값에 따라 달라집니다. 예를 들어, 특정한 $n$의 경우 재귀 기반의 기준 구현은 한 번 호출하는 데 약 330ns가 걸립니다. 하지만 재귀 호출에는 [오버헤드](/hpc/architecture/functions/)가 따르기 때문에, 이 구현을 반복문 형태로 펼쳐서(unroll) 개선하는 것이 자연스러운 선택입니다.
 
-The result of $a^n$ can be represented as the product of $a$ to some powers of two — those that correspond to 1s in the binary representation of $n$. For example, if $n = 42 = 32 + 8 + 2$, then
+### 반복 구현
+
+$a^n$의 결과는 $n$의 이진 표현에서 1이 설정된 자리에 해당하는 $a$의 거듭제곱들의 곱으로 나타낼 수 있습니다. 예를 들어, $n = 42 = 32 + 8 + 2$일 때 다음과 같이 표현할 수 있습니다.
 
 $$
 a^{42} = a^{32+8+2} = a^{32} \cdot a^8 \cdot a^2 
 $$
 
-To calculate this product, we can iterate over the bits of $n$ maintaining two variables: the value of $a^{2^k}$ and the current product after considering $k$ lowest bits of $n$. On each step, we multiply the current product by $a^{2^k}$ if the $k$-th bit of $n$ is set, and, in either case, square $a^k$ to get $a^{2^k \cdot 2} = a^{2^{k+1}}$ that will be used on the next iteration.
+이 곱을 계산하기 위해, 두 개의 변수를 유지하며 $n$의 비트를 순회할 수 있습니다. 하나는 현재 $a^{2^k}$의 값을 저장하고, 다른 하나는 지금까지 고려된 $k$개의 하위 비트에 해당하는 곱셈 결과입니다. 각 단계에서 $n$의 $k$번째 비트가 1이면, 현재 결과에 $a^{2^k}$를 곱하고, 이후에는 항상 이를 제곱하여 다음 단계의 $a^{2^{k+1}}$을 준비합니다.
 
 ```c++
 u64 binpow(u64 a, u64 n) {
@@ -85,9 +87,9 @@ u64 binpow(u64 a, u64 n) {
 }
 ```
 
-The iterative implementation takes about 180ns per call. The heavy calculations are the same; the improvement mainly comes from the reduced dependency chain: `a = a * a % M` needs to finish before the loop can proceed, and it can now execute concurrently with `r = res * a % M`.
+이 반복 기반 구현은 호출당 약 180ns가 걸립니다. 핵심적인 연산량은 재귀 구현과 동일하지만, 성능 향상은 주로 의존성 체인의 감소에서 비롯됩니다. 예를 들어, `a = a * a % M` 연산이 완료되어야 다음 루프가 진행되지만, 이 연산은 이제 `r = r * a % M`과 병렬로 수행될 수 있어 성능이 개선됩니다.
 
-The performance also benefits from $n$ being a constant, [making all branches predictable](/hpc/pipelining/branching/) and letting the scheduler know what needs to be executed in advance. The compiler, however, does not take advantage of it and does not unroll the `while(n) n >>= 1` loop. We can rewrite it as a `for` loop that performs constant 30 iterations:
+또한, $n$이 상수일 경우, 성능은 더욱 향상됩니다. [모든 분기가 예측 가능](/hpc/pipelining/branching/)해지고, 스케줄러는 어떤 명령어를 사전에 준비할 지 알 수 있기 때문입니다. 다만 컴파일러는 이러한 이점을 적극 활용하지 않으며, `while (n) n >>=1` 루프를 자동으로 펼치지 않습니다. 이를 명시적으로 `for`문으로 바꿔 30회의 고정된 반복을 수행하면 더 나은 성능을 얻을 수 있습니다.
 
 ```c++
 u64 inverse(u64 a) {
@@ -104,6 +106,6 @@ u64 inverse(u64 a) {
 }
 ```
 
-This forces the compiler to generate only the instructions we need, shaving off another 10ns and making the total running time ~170ns.
+이렇게 하면 컴파일러는 실제로 필요한 명령어만 생성하게 되어, 약 10ns를 더 줄일 수 있고 전체 실행 시간은 약 170ns 수준으로 감소합니다.
 
-Note that the performance depends not only on the binary length of $n$, but also on the number of binary 1s. If $n$ is $2^{30}$, it takes around 20ns less as we don't have to to perform any off-path multiplications.
+마지막으로, 성능은 단순히 $n$의 이진 길이에만 의존하지 않고, 1의 개수에도 영향을 받는다는 점을 유의하세요. 예를 들어, $n = 2^{30}$일 경우, 실제 곱셈 연산이 수행되지 않기 때문에 약 20ns 더 빠르게 동작합니다.
